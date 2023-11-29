@@ -1,0 +1,140 @@
+﻿@inject IJSRuntime JSRuntime
+@inject GlobalService globalService
+@inject NavigationManager navigation
+
+<PageTitle>@_title</PageTitle>
+
+@if (Layout.User.role != 1 && !Layout.User.role_manage.system)
+{
+  <PopupNoRole />
+}
+else
+{
+  @if (viewType == 1)
+  {
+    <ul class="columns is-vcentered is-variable is-2">
+      <li class="column">
+        <h1 class="title is-5 has-text-info is-uppercase">
+          Danh sách phòng ban
+        </h1>
+      </li>
+      <li class="column is-narrow">
+        <a class="button" @onclick="Add">
+          <span class="icon">
+            <span class="material-icons-outlined is-size-6">add</span>
+          </span>
+          <span>Thêm mới</span>
+        </a>
+      </li>
+    </ul>
+    <div class="menu mt-4 scrolly inner_section" style="flex:1">
+      <ul class="menu-list">
+        @foreach (var child in dataList)
+        {
+          <_Department CompanyId="@Layout.Company.id" DepartmentAll="@database" Current="child" OnViewDetail="ViewDetail" />
+        }
+      </ul>
+    </div>
+  }
+  else if (viewType == 2)
+  {
+    <DepartmentEdit Id="@departId" OnUpdate="DepartUpdate" />
+  }
+  else if (viewType == 3)
+  {
+    <DepartmentStaff Id="@departId" OnUpdate="DepartUpdate" />
+  }
+}
+
+
+@code {
+  [CascadingParameter]
+  public LayoutMain Layout { get; set; }
+  private string _title = "Danh sách phòng ban";
+
+  private string departId;
+
+  private List<DepartmentModel> database = new();
+  private List<DepartmentModel> dataList = new();
+
+  private int viewType = 1;
+
+  protected override async Task OnInitializedAsync()
+  {
+    database = await DbDepartment.GetAll(Layout.Company.id);
+    dataList = database.Where(x => string.IsNullOrEmpty(x.parent)).ToList();
+    await UpdateUserDepartmentName();
+  }
+
+
+  private async Task<bool> UpdateUserDepartmentName()
+  {
+    bool _success = true;
+    try
+    {
+      var companyId = Layout.Company.id;
+      var userList = await DbUser.GetAll(companyId, globalService);
+      foreach (var user in userList)
+      {
+        var department = await DbDepartment.GetNameListOfUser(companyId, user.departments_id, database);
+        await JSRuntime.InvokeVoidAsync("console.log", department);
+        user.departments_name = String.Join(" / ", department);
+        await DbUser.Update(companyId, user, globalService);
+      }
+      await Layout.RefreshData();
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "UpdateUserDepartmentName()", ex.ToString(), Layout.User.id, Layout.Company.name);
+      await Layout.Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private void Add()
+  {
+    viewType = 2;
+    departId = string.Empty;
+  }
+
+  private async Task DepartUpdate(bool e)
+  {
+    viewType = 1;
+    departId = string.Empty;
+
+    if (e)
+    {
+      database = await DbDepartment.GetAll(Layout.Company.id);
+      dataList = database.Where(x => string.IsNullOrEmpty(x.parent)).ToList();
+      await UpdateUserDepartmentName();
+    }
+  }
+
+  private async Task ViewDetail(string id)
+  {
+    if (id == "delete")
+    {
+      viewType = 1;
+      departId = string.Empty;
+
+      database = await DbDepartment.GetAll(Layout.Company.id);
+      dataList = database.Where(x => string.IsNullOrEmpty(x.parent)).ToList();
+      await UpdateUserDepartmentName();
+    }
+    else
+    {
+      if (id.Contains("depart"))
+      {
+        viewType = 2;
+        departId = id.Split("_").Last();
+      }
+      else
+      {
+        viewType = 3;
+        departId = id.Split("_").Last();
+      }
+    }
+  }
+}

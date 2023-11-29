@@ -1,0 +1,33 @@
+
+	@if(data.time_active != null)
+		{
+			@if(data.time_type == "Check-in")
+			{
+				<label style="width: 33.33%;" class=" is-secondary-40">
+					<span class="icon-text">
+						<span class="@(data.time_difference > 0 && !data.is_ot ? "has-text-danger" : "has-text-success")">@data.time_active:00</span>
+					</span>
+				</label>
+			}
+			else
+			{
+				<label style="width: 33.33%;" class=" is-secondary-40">
+					<span class="icon-text">
+						<span class="@(data.time_difference > 0 && !data.is_ot ? "has-text-danger" : "has-text-success")">@data.time_active:00</span>
+					</span>
+				</label>
+			}
+		}
+		else
+		{
+			<label style="width: 33.33%;">
+				<span class="icon-text has-text-danger">
+					<span>Không có</span>
+				</span>
+			</label>
+		}
+
+@code {
+  [Parameter]
+  public HrmTimekeepingModel.TimeData data { get; set; }
+}

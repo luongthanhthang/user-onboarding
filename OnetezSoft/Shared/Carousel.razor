@@ -1,0 +1,140 @@
+﻿@inject NavigationManager navigation
+@inject IJSRuntime JSRuntime
+
+<section id="slider" class="@(count > 0 ? "mb-4" : "")">
+  <div class="banner_main">
+    <div class="carousel">
+      <BlazorSlickCarousel @ref="banner" Configurations="configurations">
+        <BlazorSlickCarouselContent>
+          @foreach (var item in dataList)
+          {
+            <a class="image" href="@item.link" target="_blank" title="@item.name">
+              <img src="@item.image" alt="img" />
+            </a>
+          }
+        </BlazorSlickCarouselContent>
+      </BlazorSlickCarousel>
+      <div class="dots"></div>
+      <div class="arrows"></div>
+    </div>
+  </div>
+</section>
+
+@code {
+  [CascadingParameter]
+  public LayoutMain Layout { get; set; }
+  public BlazorSlickCarousel banner;
+  public WMBSCInitialSettings configurations;
+  private List<BannerModel> database = new();
+  private List<BannerModel> dataList = new();
+  private int count = 0;
+  private List<string> hideList = new()
+  {
+    "/config",
+    "/user/info",
+    "/feedback",
+    "/work",
+    "/hrm",
+    "/okr/overview",
+    "/todolist",
+    "/teams",
+    "/reports"
+  };
+
+
+  protected override async Task OnInitializedAsync()
+  {
+    database = await DbBanner.GetList(Layout.Company.id);
+    ConfigSlide();
+    SlideFirst();
+  }
+
+
+  private void ConfigSlide()
+  {
+    configurations = new WMBSCInitialSettings
+      {
+        arrows = true,
+        dots = true,
+        autoplay = true,
+        infinite = true,
+        useCSS = false,
+        slidesToShow = 1,
+        slidesToScroll = 1,
+        autoplaySpeed = 5000,
+        appendDots = ".dots",
+        appendArrows = ".arrows",
+        prevArrow = "<a class='material-icons-round'>chevron_left</a>",
+        nextArrow = "<span class='material-icons-round'>chevron_right</span>"
+      };
+  }
+
+  private void SlideFirst()
+  {
+    var uri = new Uri(navigation.Uri);
+    var url = uri.GetLeftPart(UriPartial.Path).Replace(navigation.BaseUri, "/");
+    if (!url.StartsWith("/configs/"))
+      dataList = GetList();
+    else
+      dataList = new();
+
+    count = dataList.Count;
+  }
+
+  private void SlideChange()
+  {
+    if (banner != null)
+    {
+      var url = navigation.Uri.Replace(navigation.BaseUri, "/");
+      if (count > 0)
+        for (int i = 0; i < count; i++)
+          banner.Remove(0, false);
+
+      var list = GetList();
+      foreach (var item in list)
+      {
+        var html = $"<a class=\"image\" href=\"{item.link}\" target=\"_blank\" title=\"{item.name}\">";
+        html += $"<img src=\"{item.image}\" alt=\"img\" />";
+        html += "</a>";
+        banner.Add(html);
+      }
+      count = list.Count;
+    }
+  }
+
+  private List<BannerModel> GetList()
+  {
+    var list = new List<BannerModel>();
+    var url = navigation.Uri.Replace(navigation.BaseUri, "/");
+    if (PageShows(url))
+    {
+      foreach (var item in database)
+      {
+        if (Layout.User.departments_id.Contains(item.department) || string.IsNullOrEmpty(item.department))
+        {
+          if (item.pages.Count == 0 || url.Contains("homepage"))
+          {
+            list.Add(item);
+          }
+          else
+          {
+            foreach (var page in item.pages)
+            {
+              if (url.StartsWith(page.Key))
+              {
+                list.Add(item);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+    return list;
+  }
+
+  private bool PageShows(string url)
+  {
+    return !hideList.Any(url.StartsWith);
+  }
+}

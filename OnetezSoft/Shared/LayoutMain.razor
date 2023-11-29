@@ -1,0 +1,476 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client;
+@inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject HubService hubService
+@inject GlobalService globalService
+@using OnetezSoft.Pages.Config
+@using System.Diagnostics;
+
+<CascadingValue Value="this">
+  <main id="main" class="columns is-gapless is-multiline">
+    @if (User != null && User.active)
+    {
+      if (Company != null)
+      {
+        if (CheckAccessByUrl())
+        {
+          var uri = new Uri(navigation.Uri);
+          var current = uri.GetLeftPart(UriPartial.Path).Replace(navigation.BaseUri, "").Split("/").First();
+          <section class="column is-full">
+            <HeaderMain />
+          </section>
+          <section class="column is-full">
+            <div class="columns is-variable is-0 is-multiline">
+              @if (ListNav != null && ListNav.childs.Count > 0 && !(IsMobile && ListNav.link == "hrm/timekeeping"))
+              {
+                <div class="sidebar @(User.custom.sidebar_pin ? "is_pin" : "")">
+                  <SidebarMain Nav="ListNav" />
+                </div>
+                <section id="content" class="column has_sidebar @(ListNav != null && layoutColumns.Contains(ListNav.link) ? "has_column" : "")">
+                  @if (current.Contains("blogs"))
+                  {
+                    <Carousel />
+                  }
+                  @Body
+                </section>
+              }
+              else
+              {
+                <section id="content"
+                         class="column @(ListNav != null && layoutColumns.Contains(ListNav.link) ? "has_column" : "")">
+                  @if (current.Contains("blogs"))
+                  {
+                    <Carousel />
+                  }
+                  @Body
+                </section>
+              }
+            </div>
+          </section>
+        }
+        else
+        {
+          <div class="modal is-active">
+            <div class="modal-background"></div>
+            <div class="modal-content" style="max-width: 360px;">
+              <div class="box has-text-centered pt-5">
+                <span class="icon is-large has-text-info">
+                  <i class="material-icons-outlined is-size-1">info</i>
+                </span>
+                <div class="is-size-6 py-4 has-text-weight-medium">
+                  @message
+                </div>
+                <div>
+                  <a class="button is-fullwidth is-link" href="/">
+                    Về trang chủ
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      }
+      else
+      {
+        <section class="column is-full is-flex is-vcentered is-centered">
+          <div class="has-text-danger has-text-weight-semibold">
+            Bạn chưa chọn công ty
+          </div>
+        </section>
+      }
+    }
+    else if (User != null && !User.active)
+    {
+      <section class="column is-full is-flex is-vcentered is-centered">
+        <div class="has-text-danger has-text-weight-semibold">
+          Tài khoản của bạn trong công ty @Company.name đã bị khóa !
+        </div>
+      </section>
+    }
+    else
+    {
+      <section class="column is-full">
+        <div class="p-6 has-text-centered">
+          <a class="button is-white is-loading">
+            Đang tải...
+          </a>
+        </div>
+      </section>
+    }
+  </main>
+  <p class="fastdo_version">@("v" + LoginService.GetVersion())</p>
+
+  <UserOnboardingPopup />
+</CascadingValue>
+
+@code {
+  public UserModel User = null;
+
+  public CompanyModel Company = null;
+
+  public string CycleId = null;
+
+  public string CycleKpisId = null;
+
+  public long MaxFileSize = 10 * 1024000;
+
+  public bool IsMobile = false;
+
+  public NavModel ListNav;
+
+  public List<string> layoutColumns = new() { "work", "teams", "homepage", "config" };
+
+  private string message;
+
+
+  protected override void OnInitialized()
+  {
+    var hubConnection = hubService.GetHubConnection();
+
+    hubConnection.On<string, string, bool>("PushNotificationGlobal", async (message, companyId, warning) =>
+    {
+      if (!message.IsEmpty())
+      {
+        if (companyId == string.Empty || (Company != null && Company.id == companyId))
+          await JSRuntime.InvokeVoidAsync("tagline", !warning, message, true);
+      }
+      else
+        await JSRuntime.InvokeVoidAsync("taglineHide");
+    });
+  }
+
+  protected override void OnParametersSet()
+  {
+    GetListNav();
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      try
+      {
+        await JSRuntime.InvokeVoidAsync("windowHeight");
+
+        var cookieUser = await JSRuntime.InvokeAsync<string>("getCookie", "_user");
+        if (string.IsNullOrEmpty(cookieUser))
+        {
+          navigation.NavigateTo("/", true);
+          return;
+        }
+        else
+        {
+          User = await DbMainUser.GetbySession(cookieUser, globalService);
+          if (User == null)
+          {
+            navigation.NavigateTo("/logout", false);
+            return;
+          }
+          else
+          {
+            var current = navigation.Uri.Replace(navigation.BaseUri, "").Split("/").First();
+            if (User != null && User.role < 3 && current == "config")
+            {
+              ListNav = new NavModel()
+                {
+                  name = "Cấu hình",
+                  link = "config",
+                  icon = "settings",
+                };
+            }
+
+            // Lấy thiết bị
+            await GetDevice();
+
+            // Lấy tổ chức
+            await GetCompany(User);
+
+            // Tác vụ chạy ngầm
+            await BackgroundService();
+
+            GetListNav();
+
+            StateHasChanged();
+          }
+        }
+
+      }
+      catch (Exception ex)
+      {
+        await JSRuntime.InvokeAsync<string>("console.warn", "LayoutMain: " + ex.ToString());
+      }
+    }
+  }
+
+  private void GetListNav()
+  {
+    var uri = new Uri(navigation.Uri);
+    var current = uri.GetLeftPart(UriPartial.Path).Replace(navigation.BaseUri, "").Split("/").First();
+
+    if (User == null || Company == null)
+      return;
+
+    if (current.IsEmpty())
+      current = "blogs";
+
+    if (User != null && Company != null)
+      ListNav = ModuleService.GetByModule(current, Company, User);
+
+
+    if (User != null && User.role < 3 && current == "config")
+    {
+      ListNav = new NavModel()
+        {
+          name = "Cấu hình",
+          link = "configs",
+          icon = "config",
+        };
+    }
+
+    if (ListNav == null)
+      ListNav = new()
+        {
+          name = "Trang chủ",
+          link = "homepage",
+          icon = "home"
+        };
+  }
+
+  public bool CheckAccessByUrl()
+  {
+    var uri = new Uri(navigation.Uri);
+    var fullPath = uri.GetLeftPart(UriPartial.Path).Replace(navigation.BaseUri, "");
+    var url = fullPath.Split("/").First();
+
+    var module = ModuleService.GetModules();
+    var navList = ModuleService.GetList(Company, User);
+    var product = navList.FirstOrDefault(x => x.link.Contains(url));
+
+
+    if (url == "homepage" || url == "configs" || url == "feedback")
+    {
+      message = string.Empty;
+      return true;
+    }
+
+    if (product == null && url != "homepage" && url != "configs")
+    {
+      message = "Đường dẫn không hợp lệ hoặc bạn không được quyền sử dụng sản phẩm này. Vui lòng liên hệ quản lý tổ chức hoặc Fastdo để được hỗ trợ.";
+      return false;
+    }
+
+    var moduleName = product.link.Split("/").FirstOrDefault();
+
+
+    if (module.Contains(moduleName))
+    {
+      if (product.childs.Count > 0)
+      {
+        if (product.childs.Any(x => fullPath.Contains(x.link) && (fullPath.Contains("/") ? x.link.Contains("/") : true)))
+          return ProductService.CheckAccess(Company, User, moduleName, out message);
+        else
+        {
+          message = "Đường dẫn không hợp lệ hoặc bạn không được quyền sử dụng sản phẩm này. Vui lòng liên hệ quản lý tổ chức hoặc Fastdo để được hỗ trợ.";
+          return false;
+        }
+      }
+      else
+        return ProductService.CheckAccess(Company, User, moduleName, out message);
+    }
+    else
+      return true;
+  }
+
+  private async Task GetDevice()
+  {
+    var userAgent = await JSRuntime.InvokeAsync<string>("getUserAgent");
+    IsMobile = Shared.DeviceMobile(userAgent);
+  }
+
+  private async Task GetCompany(UserModel user)
+  {
+
+    try
+    {
+      if (Company == null)
+      {
+        var cookieCompany = await JSRuntime.InvokeAsync<string>("getCookie", "_company");
+        if (!string.IsNullOrEmpty(cookieCompany))
+        {
+          var shareStorage = await globalService.GetShareStorage(cookieCompany);
+          Company = shareStorage.comany;
+        }
+      }
+      if (Company != null)
+      {
+        var shareStorage = await globalService.GetShareStorage(Company.id);
+        User = await DbUser.Get(Company.id, user.id, globalService);
+        if (User != null)
+        {
+          // Lấy chu kỳ
+          if (User.custom.okrs_cycle.IsEmpty())
+          {
+            var lastCycle = shareStorage.OkrConfig.cycles.FirstOrDefault();
+            if (lastCycle != null)
+            {
+              User.custom.okrs_cycle = lastCycle.id;
+              CycleId = User.custom.okrs_cycle;
+              await DbUser.Update(Company.id, User, globalService);
+            }
+          }
+          else
+          {
+            var cycle = shareStorage.OkrConfig.cycles.FirstOrDefault(x => x.id == User.custom.okrs_cycle);
+            if (cycle != null)
+              CycleId = cycle.id;
+            else
+            {
+              cycle = shareStorage.OkrConfig.cycles.FirstOrDefault();
+              if (cycle != null)
+                CycleId = cycle.id;
+            }
+          }
+
+          // Lấy chu kỳ KPIs
+          if (User.custom.kpis_cycle.IsEmpty())
+          {
+            var lastCycle = shareStorage.KpisCycles.FirstOrDefault();
+            if (lastCycle != null)
+            {
+              User.custom.kpis_cycle = lastCycle.id;
+              CycleKpisId = User.custom.kpis_cycle;
+              await DbUser.Update(Company.id, User, globalService);
+            }
+          }
+          else
+          {
+            var cycle = shareStorage.KpisCycles.FirstOrDefault(x => x.id == User.custom.kpis_cycle);
+            if (cycle != null)
+              CycleKpisId = cycle.id;
+            else
+            {
+              cycle = shareStorage.KpisCycles.FirstOrDefault();
+              if (cycle != null)
+                CycleKpisId = cycle.id;
+            }
+          }
+        }
+        else
+          navigation.NavigateTo("/", true);
+      }
+      else
+        navigation.NavigateTo("/", true);
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "GetCompany()", ex.ToString(), User.id, Company.name);
+      await JSRuntime.InvokeAsync<string>("console.warn", "GetCompany: " + ex.ToString());
+      await Tagline();
+    }
+  }
+
+  public async Task<bool> RefreshData()
+  {
+    bool _success = true;
+    try
+    {
+      Company = await DbMainCompany.Get(Company.id);
+      await globalService.AddOrUpdate(Company.id);
+
+      await InvokeAsync(StateHasChanged);
+      await JSRuntime.InvokeAsync<string>("console.log", string.Format("Update Layout at {0:HH:mm:ss}", DateTime.Now));
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "RefreshData()", ex.ToString(), User.id, Company.name);
+      await Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private async Task BackgroundService()
+  {
+    try
+    {
+      if (Company != null)
+      {
+        new Task(async () =>
+        {
+          var storage = CompanyService.UpdateStorageUsed(Company.id);
+          await globalService.Update(Company.id);
+          await Task.WhenAll(storage);
+          // await UpdateDepartmentPos();
+          var shareStorage = await globalService.GetShareStorage(Company.id);
+
+          await globalService.AddOrUpdate(Company.id);
+        }).Start();
+      }
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "BackgroundService()", ex.ToString(), User.id, Company.name);
+      await Tagline();
+    }
+  }
+
+  public async Task Tagline(string message = "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại hoặc liên hệ với chúng tôi!")
+  {
+    await JSRuntime.InvokeVoidAsync("tagline", false, message);
+  }
+
+  public async Task UpdateDepartmentPos()
+  {
+    var allDepart = await DbDepartment.GetAll(Company.id);
+    var cloneList = Shared.CloneList(allDepart);
+
+    var root = allDepart.Where(x => x.parent.IsEmpty());
+
+    foreach (var depart in root)
+    {
+      depart.pos = 0;
+      var childs = allDepart.Where(x => x.parent == depart.id).ToList();
+      await UpdatePos(depart, childs, allDepart);
+    }
+
+    foreach (var depart in allDepart)
+    {
+      var cloneItem = cloneList.FirstOrDefault(x => x.id == depart.id);
+      if (cloneItem != null)
+      {
+        if (cloneItem.pos != depart.pos)
+          await DbDepartment.Update(Company.id, depart);
+      }
+    }
+  }
+
+  public async Task UpdatePos(DepartmentModel parent, List<DepartmentModel> childs, List<DepartmentModel> all)
+  {
+    if (parent == null || childs.Count == 0)
+      return;
+    else
+    {
+      foreach (var child in childs)
+      {
+        child.pos = parent.pos + 1;
+        var subChild = all.Where(x => x.parent == child.id).ToList();
+        if (subChild.Count > 0)
+        {
+          await UpdatePos(child, subChild, all);
+        }
+      }
+    }
+  }
+
+  public async Task ToggleNavLess()
+  {
+    if (navigation.Uri.Contains("/kpis/root"))
+      await JSRuntime.InvokeVoidAsync("SetLayoutReportPosition", "#kpis-report", "#chartKpisCheck", ".kpis-list-check");
+
+    await InvokeAsync(StateHasChanged);
+  }
+}

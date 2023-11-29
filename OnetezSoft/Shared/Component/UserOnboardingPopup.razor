@@ -1,0 +1,504 @@
+﻿@inject NavigationManager navigation
+
+<section class="modal is-active">
+  <div class="modal-background"></div>
+  <section class="modal-card is-large" style="padding: 0 10px;">
+    <section class="modal-card-head">
+      <div class="modal-card-title">
+        Hướng dẫn sử dụng
+      </div>
+      <a class="delete is-medium" @onclick="Cancel"></a>
+    </section>
+    <section class="modal-card-body p-0">
+      @if (step == 2)
+      {
+        <div class="columns is-vcentered is-variable is-0 h-full">
+          <div class="column is-2 h-full is-bg-grey">
+            <div class="column is-full has-flex-mobile">
+              <div class="columns is-multiline is-variable is-2 scrolly h-full">
+                @foreach (var item in dataList)
+                {
+                  <div class="column is-full">
+                    <div class="button is-justify-content-flex-start is-fullwidth @(item.id == itemSelect.id ? " is-link is-blue" : "is-grey" )"
+                    @onclick="() => ChangeConfig(item.id)">
+                      <span class="text_1_line has-text-weight-medium">@item.name</span>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <p class="has-text-link is-clickable mt-4"
+              @onclick="() => Navigate()">
+                Đến trang đang xem
+              </p>
+            </div>
+          </div>
+          <div class="column is-10 h-full is-flex is-flex-direction-column is-align-content-space-between" style="height: 600px;">
+            <div class="is-flex is-align-items-center p-4 is-justify-content-end">
+              <div class="sidebar-plan-icon-container is-white mr-2" @onclick="() => Previous()">
+                <span class="icon is-size-5 has-text-grey">
+                  <i class="material-icons-outlined">navigate_before</i>
+                </span>
+              </div>
+              <div class="sidebar-plan-icon-container is-white" @onclick="() => Next()">
+                <span class="icon is-size-5 has-text-grey">
+                  <i class="material-icons-outlined">navigate_next</i>
+                </span>
+              </div>
+            </div>
+            
+            @if (!itemSelect.is_alone)
+            {
+              <div class="columns is-vcentered is-multiline is-variable is-2 m-0 p-2">
+                @foreach (var item in itemSelect.functions)
+                {
+                  <div class="column is-narrow">
+                    <div class="button is-justify-content-flex-start is-fullwidth @(item.id == functionSelect.id ? " is-link is-blue" : "is-grey" )"
+                    @onclick="() => ChangeFunction(item.id)">
+                      <span class="text_1_line has-text-weight-medium">@item.name</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            <div class="image p-4" style="height: 445px; object-fit:unset;">
+              <img src="@GetImage()" alt="icon">
+            </div>
+          </div>
+        </div>
+      }
+      else if (step == 1)
+      {
+        <div class="columns is-vcentered is-multiline is-variable is-4 h-full p-4 m-0">
+          <div class="column is-4 is-clickable" @onclick="() => NextModule()">
+            <div class="p-4" style="background: #FAFAFA; border-radius: 8px;">
+              <span class="icon-text">
+                <span class="image is-40x40 mr-2">
+                  <img src="/images/modules/checkin.png" alt="icon">
+                </span>
+                <span class="is-size-5 has-text-black has-text-weight-bold">Cấu hình chấm công</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      }
+    </section>
+
+    <div class="modal-card-foot is-right">
+      <div style="flex-grow: 1;display:flex;align-items:center;">
+        <label class="is-flex is-clickable has-text-link" for="hybrid" title="Chế độ linh động">
+          <input id="hybrid" class="mr-2" type="checkbox">
+          <span class="has-text-weight-semibold">
+            Không hiển thị nữa
+          </span>
+        </label>
+      </div>
+      @if (step == 2)
+      {
+        <a class="button" @onclick="() => PreviousModule()">
+          <span class="icon">
+            <i class="material-icons-round is-size-6">close</i>
+          </span>
+          <span>Trở về</span>
+        </a>
+      }
+    </div>
+  </section>
+</section>
+
+
+@code {
+  [CascadingParameter]
+  public LayoutMain Layout { get; set; }
+  [Parameter]
+  public EventCallback OnClose { get; set; }
+
+  private int step = 1;
+  private int stepImage = 0;
+
+  private List<UserOnboardingModel> dataList = new();
+  private UserOnboardingModel itemSelect;
+  private FunctionOnboardingModel functionSelect;
+
+  protected override void OnInitialized()
+  {
+    dataList.Add(new()
+      {
+        id = "0",
+        name = "Giới thiệu chung",
+        functions = new()
+      {
+        new()
+        {
+          id = "0",
+          name = "Giới thiệu chung",
+          images = new()
+          {
+            "/images/useronboarding/overview1.png",
+            "/images/useronboarding/overview2.png",
+            "/images/useronboarding/overview3.png",
+            "/images/useronboarding/overview4.png",
+            "/images/useronboarding/overview5.png",
+            "/images/useronboarding/overview6.png",
+            "/images/useronboarding/overview7.png",
+            "/images/useronboarding/overview8.png",
+            "/images/useronboarding/overview9.png",
+            "/images/useronboarding/overview10.png"
+          }
+        }
+      }
+      });
+
+    dataList.Add(new()
+      {
+        id = "1",
+        name = "Địa điểm",
+        url = "/configs/timekeeping/location",
+        functions = new()
+      {
+        new()
+        {
+          id = "0",
+          name = "Tạo mới",
+          images = new()
+          {
+            "/images/useronboarding/location-create1.png",
+            "/images/useronboarding/location-create2.png",
+            "/images/useronboarding/location-create3.png",
+            "/images/useronboarding/location-create4.png"
+          }
+        },
+        new()
+        {
+          id = "1",
+          name = "Chỉnh sửa",
+          images = new()
+          {
+            "/images/useronboarding/location-edit1.png",
+            "/images/useronboarding/location-edit2.png",
+            "/images/useronboarding/location-edit3.png"
+          }
+        },
+        new()
+        {
+          id = "2",
+          name = "Xoá",
+          images = new()
+          {
+            "/images/useronboarding/location-delete1.png",
+            "/images/useronboarding/location-delete2.png",
+            "/images/useronboarding/location-delete3.png"
+          }
+        }
+      }
+      });
+
+    dataList.Add(new()
+      {
+        id = "2",
+        name = "Phân địa điểm",
+        url = "/configs/timekeeping/locationassign",
+        functions = new()
+      {
+        new()
+        {
+          id = "0",
+          name = "phân địa điểm",
+          images = new()
+          {
+            "/images/useronboarding/location-assign1.png",
+            "/images/useronboarding/location-assign2.png",
+            "/images/useronboarding/location-assign3.png",
+            "/images/useronboarding/location-assign4.png",
+            "/images/useronboarding/location-assign5.png"
+          }
+        }
+      }
+      });
+
+    dataList.Add(new()
+      {
+        id = "3",
+        name = "Ca làm",
+        url = "/configs/timekeeping/workshift",
+        functions = new()
+      {
+        new()
+        {
+          id = "0",
+          name = "Tạo mới ca làm bình thường",
+          images = new()
+          {
+            "/images/useronboarding/workshift-create1.png",
+            "/images/useronboarding/workshift-create1-2.png",
+            "/images/useronboarding/workshift-create1-3.png",
+            "/images/useronboarding/workshift-create1-4.png"
+          }
+        },
+        new()
+        {
+          id = "1",
+          name = "Tạo mới ca làm theo giờ",
+          images = new()
+          {
+            "/images/useronboarding/workshift-create1.png",
+            "/images/useronboarding/workshift-create2-2.png",
+            "/images/useronboarding/workshift-create2-3.png",
+            "/images/useronboarding/workshift-create2-4.png",
+            "/images/useronboarding/workshift-create2-5.png",
+            "/images/useronboarding/workshift-create2-6.png",
+          }
+        },
+        new()
+        {
+          id = "2",
+          name = "Xoá",
+          images = new()
+          {
+            "/images/useronboarding/workshift-delete1.png",
+            "/images/useronboarding/workshift-delete2.png",
+            "/images/useronboarding/workshift-delete3.png"
+          }
+        }
+      }
+      });
+
+    dataList.Add(new()
+      {
+        id = "4",
+        name = "Quy định",
+        url = "/configs/timekeeping/rules",
+        functions = new()
+      {
+        new()
+        {
+          id = "0",
+          name = "Quy định",
+          images = new()
+          {
+            "/images/useronboarding/rules1.png",
+            "/images/useronboarding/rules2.png",
+            "/images/useronboarding/rules3.png",
+            "/images/useronboarding/rules4.png",
+            "/images/useronboarding/rules5.png"
+          }
+        }
+      }
+      });
+
+    dataList.Add(new()
+      {
+        id = "5",
+        name = "Ngày nghỉ",
+        url = "/configs/timekeeping/dayoff",
+        functions = new()
+      {
+        new()
+        {
+          id = "0",
+          name = "Tạo mới nghỉ lễ",
+          images = new()
+          {
+            "/images/useronboarding/dayoff-create1-1.png",
+            "/images/useronboarding/dayoff-create1-2.png",
+            "/images/useronboarding/dayoff-create1-3.png"
+          }
+        },
+        new()
+        {
+          id = "1",
+          name = "Chỉnh sửa nghỉ lễ",
+          images = new()
+          {
+            "/images/useronboarding/dayoff-edit1-1.png",
+            "/images/useronboarding/dayoff-edit1-2.png",
+            "/images/useronboarding/dayoff-edit1-3.png"
+          }
+        },
+        new()
+        {
+          id = "2",
+          name = "Xoá nghỉ lễ",
+          images = new()
+          {
+            "/images/useronboarding/dayoff-delete1-1.png",
+            "/images/useronboarding/dayoff-delete1-2.png",
+            "/images/useronboarding/dayoff-delete1-3.png"
+          }
+        },
+        new()
+        {
+          id = "3",
+          name = "Tạo mới nghỉ tuần",
+          images = new()
+          {
+            "/images/useronboarding/dayoff-create2-1.png",
+            "/images/useronboarding/dayoff-create2-2.png",
+            "/images/useronboarding/dayoff-create2-3.png"
+          }
+        },
+        new()
+        {
+          id = "4",
+          name = "Chỉnh sửa nghỉ tuần",
+          images = new()
+          {
+            "/images/useronboarding/dayoff-edit2-1.png",
+            "/images/useronboarding/dayoff-edit2-2.png",
+            "/images/useronboarding/dayoff-edit2-3.png"
+          }
+        },
+        new()
+        {
+          id = "5",
+          name = "Xoá nghỉ tuần",
+          images = new()
+          {
+            "/images/useronboarding/dayoff-delete2-1.png",
+            "/images/useronboarding/dayoff-delete2-2.png",
+            "/images/useronboarding/dayoff-delete2-3.png"
+          }
+        }
+      }
+      });
+
+    dataList.Add(new()
+      {
+        id = "6",
+        name = "Thiết bị",
+        url = "/configs/timekeeping/device",
+        functions = new()
+      {
+        new()
+        {
+          id = "0",
+          name = "Phê duyệt",
+          images = new()
+          {
+            "/images/useronboarding/device-confirm1.png",
+            "/images/useronboarding/device-confirm2.png",
+            "/images/useronboarding/device-confirm3.png"
+          }
+        },
+        new()
+        {
+          id = "1",
+          name = "Từ chối",
+          images = new()
+          {
+            "/images/useronboarding/device-cancel1.png",
+            "/images/useronboarding/device-cancel2.png",
+            "/images/useronboarding/device-cancel3.png"
+          }
+        }
+      }
+      });
+
+    itemSelect = dataList.FirstOrDefault();
+    functionSelect = itemSelect.functions.FirstOrDefault();
+  }
+
+  private async Task Cancel()
+  {
+    await OnClose.InvokeAsync();
+  }
+
+  private void NextModule()
+  {
+    step = 2;
+    itemSelect = dataList.FirstOrDefault();
+    functionSelect = itemSelect.functions.FirstOrDefault();
+    stepImage = 0;
+    GetImage();
+  }
+
+  private void PreviousModule()
+  {
+    step = 1;
+    itemSelect = dataList.FirstOrDefault();
+    functionSelect = itemSelect.functions.FirstOrDefault();
+    stepImage = 0;
+    GetImage();
+  }
+
+  private void ChangeConfig(string idItem)
+  {
+    itemSelect = dataList.FirstOrDefault(i => i.id == idItem);
+    functionSelect = itemSelect.functions.FirstOrDefault();
+    stepImage = 0;
+    GetImage();
+  }
+
+  private void ChangeFunction(string idItem)
+  {
+    functionSelect = itemSelect.functions.FirstOrDefault(i => i.id == idItem);
+    stepImage = 0;
+    GetImage();
+  }
+
+  private void Navigate()
+  {
+    if (!Shared.IsEmpty(itemSelect.url))
+      navigation.NavigateTo(itemSelect.url);
+  }
+
+  private string GetImage()
+  {
+    if (itemSelect.id == "0" && functionSelect.id == "0" && stepImage == -1)
+    {
+      // TH: Không lùi được nữa
+      stepImage = 0;
+      itemSelect = dataList.FirstOrDefault();
+      functionSelect = itemSelect.functions.FirstOrDefault();
+    }
+    else if (itemSelect.id == "6" && functionSelect.id == "1" && stepImage == 2)
+    {
+      // TH: Không thể tiến
+      stepImage--;
+    }
+    else if (stepImage == -1)
+    {
+      // Lùi module
+      var itemTemp = Shared.Clone(itemSelect);
+      var functionTemp = Shared.Clone(functionSelect);
+      if (functionSelect.id == "0")
+      {
+        itemSelect = dataList[Convert.ToInt32(itemTemp.id) - 1];
+        functionSelect = itemSelect.functions.FirstOrDefault();
+      }
+      else
+        functionSelect = itemSelect.functions[Convert.ToInt32(functionTemp.id) - 1];
+
+      stepImage = functionSelect.images.Count - 1;
+    }
+    else if (stepImage == functionSelect.images.Count)
+    {
+      // Tiến module
+      var itemTemp = Shared.Clone(itemSelect);
+      var functionTemp = Shared.Clone(functionSelect);
+      stepImage = 0;
+      if (Convert.ToInt32(functionSelect.id) == itemSelect.functions.Count - 1)
+      {
+        itemSelect = dataList[Convert.ToInt32(itemTemp.id) + 1];
+        functionSelect = itemSelect.functions.FirstOrDefault();
+      }
+      else
+        functionSelect = itemSelect.functions[Convert.ToInt32(functionTemp.id) + 1];
+    }
+
+    return functionSelect.images[stepImage];
+  }
+
+  private void Previous()
+  {
+    stepImage--;
+    GetImage();
+  }
+
+  private void Next()
+  {
+    stepImage++;
+    GetImage();
+  }
+}

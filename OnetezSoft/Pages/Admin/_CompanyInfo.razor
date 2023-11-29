@@ -1,0 +1,232 @@
+﻿@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject GlobalService globalService
+
+@if (company != null)
+{
+  <div class="card_corp p-4 is-size-7 has-text-dark has-text-weight-medium">
+    <div class="columns @(company.status ? "" : "is_opacity")">
+      <div class="column is-narrow">
+        <a class="image is-40x40" href="/admin/company/@company.id/products">
+          @if (!string.IsNullOrEmpty(company.logo))
+          {
+            <img src="@company.logo" style="object-fit: contain;" />
+          }
+          else
+          {
+            <i class="material-icons-round is-size-2 has-text-grey">help</i>
+          }
+        </a>
+      </div>
+      <div class="column is-narrow" style="width: 45%; flex: none;">
+        <a class="title is-5 mb-0" href="/admin/company/@company.id/products">
+          @company.name
+        </a>
+        <div class="has-text-weight-bold mb-2">
+          Sản phẩm sở hữu
+        </div>
+        <div class="tags">
+          @foreach (var product in products)
+          {
+            bool active = company.products.Where(x => x.id == product.id).Count() > 0;
+            <div class="tag is-dark is-rounded is-medium px-4 @(active ? "" : "is_opacity")">
+              <span class="is-size-7">@product.title</span>
+              <span class="icon">
+                <i class="material-icons-round">@(active ? "update" : "add")</i>
+              </span>
+            </div>
+          }
+        </div>
+      </div>
+      <div class="column" style="width: calc(55% - 112px);">
+        <div class="level mb-1">
+          <div class="level-left">
+            <div class="has-text-weight-bold">
+              Thông tin tổ chức
+              @if (!company.status)
+              {
+                <span class="has-text-danger">(Chưa kích hoạt)</span>
+              }
+            </div>
+          </div>
+          <div class="level-right">
+            <a class="icon-text has-text-dark" href="/admin/company/@company.id/products">
+              <span class="icon">
+                <i class="material-icons-round is-size-6">link</i>
+              </span>
+              <span>Truy cập sản phẩm</span>
+            </a>
+          </div>
+        </div>
+        <div class="icon-text mb-1">
+          <span class="icon is-small mr-3">
+            <i class="material-icons-round is-size-6">call</i>
+          </span>
+          <span>@company.phone</span>
+        </div>
+        <div class="icon-text mb-1">
+          <span class="icon is-small mr-3">
+            <i class="material-icons-round is-size-6">email</i>
+          </span>
+          <span>@company.email</span>
+        </div>
+        <div class="icon-text mb-1">
+          <span class="icon is-small mr-3">
+            <i class="material-icons-round is-size-6">place</i>
+          </span>
+          <span>@company.address</span>
+        </div>
+        @if (!string.IsNullOrEmpty(company.website))
+        {
+          <div class="icon-text mb-1">
+            <span class="icon is-small mr-3">
+              <i class="material-icons-round is-size-6">language</i>
+            </span>
+            <span>@company.website</span>
+          </div>
+        }
+        @if (!string.IsNullOrEmpty(company.note))
+        {
+          <div class="has-text-weight-bold">
+            Mô tả thêm
+          </div>
+          <div class="text_inline">@company.note</div>
+        }
+      </div>
+      <div class="column is-narrow">
+        <div class="dropdown is-hoverable is-right">
+          <div class="dropdown-trigger">
+            <span class="icon">
+              <i class="material-icons-round is-size-5">
+                more_vert
+              </i>
+            </span>
+          </div>
+          <div class="dropdown-menu">
+            <div class="dropdown-content">
+              <a class="dropdown-item" @onclick="EditCompany">
+                Chỉnh sửa thông tin
+              </a>
+              <a class="dropdown-item" @onclick="EditManager">
+                Thay đổi quản lý tổ chức
+              </a>
+              <a class="dropdown-item" @onclick="ToggleActive">
+                @(company.status ? "Hủy kích hoạt tổ chức" : "Kích hoạt tổ chức")
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <_CompanyEdit model="model" OnUpdate="OnUpdateCompany" />
+  <_CompanyAdmin model="manager" company="company" OnUpdate="OnUpdateManager" />
+}
+
+@code {
+  [CascadingParameter]
+  public LayoutAdmin Layout { get; set; }
+  [Parameter]
+  public CompanyModel company { get; set; }
+  [Parameter]
+  public List<ProductModel> products { get; set; }
+  [Parameter]
+  public List<UserModel> members { get; set; }
+  [Parameter]
+  public long online { get; set; }
+
+  private CompanyModel model = null;
+  private UserModel manager = null;
+
+
+
+  private async Task<bool> ToggleActive()
+  {
+    bool _success = true;
+    try
+    {
+      if (company.status)
+      {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Bạn có chắc muốn hủy kích hoạt tổ chức này?"))
+          return false;
+      }
+      else
+      {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Bạn có chắc muốn kích hoạt tổ chức này?"))
+          return false;
+      }
+      company.status = !company.status;
+      await DbMainCompany.Update(company);
+      if(!company.status)
+      {
+        await globalService.RemoveShareStorage(company.id);
+      }
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "ToggleActive()", ex.ToString(), Layout.User.id);
+      await Layout.Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private async Task<bool> EditCompany()
+  {
+    bool _success = true;
+    try
+    {
+      model = await DbMainCompany.Get(company.id);
+      await JSRuntime.InvokeVoidAsync("textAutoSize", "note");
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "EditCompany()", ex.ToString(), Layout.User.id);
+      await Layout.Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private async Task<bool> OnUpdateCompany(bool isUpdate)
+  {
+    bool _success = true;
+    try
+    {
+      if (isUpdate)
+      {
+        await JSRuntime.InvokeVoidAsync("tagline", true, "Đã cập nhật thông tin tổ chức!");
+        company = await DbMainCompany.Get(company.id);
+      }
+      model = null;
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "OnUpdateCompany()", ex.ToString(), Layout.User.id);
+      await Layout.Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private void EditManager()
+  {
+    manager = new UserModel();
+    manager = new() { companys = new(), role_manage = new(), is_customer = true, active = true };
+    manager.avatar = $"https://avatars.dicebear.com/api/micah/{DateTime.Now.Minute}.svg?background=grey";
+  }
+
+  private async Task OnUpdateManager(UserModel user)
+  {
+    manager = null;
+    if (user != null)
+    {
+      await JSRuntime.InvokeVoidAsync("tagline", true, "Đã thay đổi quản lý tổ chức!");
+      navigation.NavigateTo("/admin/customers/" + user.id, false);
+    }
+  }
+}

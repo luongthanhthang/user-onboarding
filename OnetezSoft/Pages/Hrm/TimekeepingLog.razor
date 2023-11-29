@@ -1,0 +1,215 @@
+@if (checkin != null)
+{
+  // Checkin sớm
+  if (checkin.time_difference <= 0)
+  {
+    <li class="column is-one-third">
+      <span class="icon-text">
+        <span class="icon is-small has-text-success">
+          <i class="material-icons is-size-6">done</i>
+        </span>
+        <span class="pr-2">@checkin.time_active:00</span>
+      </span>
+    </li>
+    <li class="column is-two-thirds">
+      <div>Check-in: @checkin.time_name</div>
+      @if (!checkin.in_company)
+      {
+        <div>Check-in ngoài: @checkin.reason</div>
+      }
+    </li>
+    @if (isEarly && checkout.time_active != null && !checkout.is_ot)
+    {
+    <li class="column is-one-third has-text-danger">
+     <span class="icon-text">
+      <span class="icon is-small">
+       <i class="material-icons is-size-6">error_outline</i>
+      </span>
+      <span class="pr-2">@checkout.time_active:00</span>
+     </span>
+    </li>
+    <li class="column is-two-thirds">
+     <div class="has-text-danger">Check-out: @checkout.time_name</div>
+     <div>Sớm @checkout.time_difference phút</div>
+     @if (!checkout.in_company)
+     {
+     <div>Check-out ngoài: @checkout.reason</div>
+     }
+    </li>
+    }
+    @if (!checkin.is_ot)
+    {
+    <li class="column is-one-third has-text-grey">
+     <span class="icon-text">
+      <span class="icon is-small">
+       <i class="material-icons is-size-6">flag</i>
+      </span>
+      <span class="pr-2">@checkin.time_shift:00</span>
+    </span>
+   	</li>
+    <li class="column is-two-thirds has-text-grey is-italic">
+     Bắt đầu: @checkin.time_name
+    </li>
+    }
+  }
+  // Checkin trễ
+  else
+  {
+    if (!checkin.is_ot)
+    {
+      <li class="column is-one-third has-text-grey">
+        <span class="icon-text">
+          <span class="icon is-small">
+            <i class="material-icons is-size-6">flag</i>
+          </span>
+          <span class="pr-2">@checkin.time_shift:00</span>
+        </span>
+      </li>
+      <li class="column is-two-thirds has-text-grey is-italic">
+        Bắt đầu: @checkin.time_name
+      </li>
+    }
+    <li class="column is-one-third has-text-danger">
+      <span class="icon-text">
+        <span class="icon is-small">
+          <i class="material-icons is-size-6">error_outline</i>
+        </span>
+        <span class="pr-2">@checkin.time_active:00</span>
+      </span>
+    </li>
+    <li class="column is-two-thirds">
+      <div class="has-text-danger">Check-in @checkin.time_name</div>
+      <div>Trễ @checkin.time_difference phút</div>
+      @if (!checkin.in_company)
+      {
+        <div>Check-in ngoài: @checkin.reason</div>
+      }
+    </li>
+    @if (isEarly && checkout.time_active != null)
+    {
+      <li class="column is-one-third has-text-danger">
+        <span class="icon-text">
+          <span class="icon is-small">
+            <i class="material-icons is-size-6">error_outline</i>
+          </span>
+          <span class="pr-2">@checkout.time_active:00</span>
+        </span>
+      </li>
+      <li class="column is-two-thirds">
+        <div class="has-text-danger">Check-out: @checkout.time_name</div>
+        <div>Sớm @checkout.time_difference phút</div>
+        @if (!checkout.in_company)
+        {
+          <div>Check-out ngoài: @checkout.reason</div>
+        }
+      </li>
+    }
+  }
+}
+@if (checkout.time_difference <= 0)
+{
+  @if (!checkout.is_ot)
+  {
+    <li class="column is-one-third has-text-grey">
+      <span class="icon-text">
+        <span class="icon is-small">
+          <i class="material-icons is-size-6">flag</i>
+        </span>
+        <span class="pr-2">@checkout.time_shift:00</span>
+      </span>
+    </li>
+    <li class="column is-two-thirds has-text-grey is-italic">
+      Kết thúc: @checkout.time_name
+    </li>
+  }
+
+
+  @if (!string.IsNullOrEmpty(checkout.time_active) && !isEarly)
+  {
+    <li class="column is-one-third">
+      <span class="icon-text">
+        <span class="icon is-small has-text-success">
+          <i class="material-icons is-size-6">done</i>
+        </span>
+        <span class="pr-2">@checkout.time_active:00</span>
+      </span>
+    </li>
+    <li class="column is-two-thirds">
+      <div>Check-out: @checkout.time_name</div>
+      @if (!checkout.in_company)
+      {
+        <div>Check-out ngoài: @checkout.reason</div>
+      }
+    </li>
+  }
+}
+else
+{
+	@if(!isEarly )
+	{
+		@if (checkout.is_ot)
+		{
+			<li class="column is-one-third">
+					<span class="icon-text">
+							<span class="icon is-small has-text-success">
+									<i class="material-icons is-size-6">done</i>
+							</span>
+							<span class="pr-2">@checkout.time_active:00</span>
+					</span>
+			</li>
+			<li class="column is-two-thirds">
+					<div>Check-out: @checkout.time_name</div>
+					@if (!checkout.in_company)
+					{
+							<div>Check-out ngoài: @checkin.reason</div>
+					}
+			</li>
+		}
+		else 
+		{
+			<li class="column is-one-third has-text-danger">
+					<span class="icon-text">
+							<span class="icon is-small">
+									<i class="material-icons is-size-6">error_outline</i>
+							</span>
+							<span class="pr-2">@checkout.time_active:00</span>
+					</span>
+			</li>
+			<li class="column is-two-thirds">
+					<div class="has-text-danger">Check-out: @checkout.time_name</div>
+					<div>Sớm @checkout.time_difference phút</div>
+					@if (!checkout.in_company)
+					{
+							<div>Check-out ngoài: @checkin.reason</div>
+					}
+			</li>
+		}
+	}
+
+  @if (!checkout.is_ot)
+  {
+    <li class="column is-one-third has-text-grey">
+      <span class="icon-text">
+        <span class="icon is-small">
+          <i class="material-icons is-size-6">flag</i>
+        </span>
+        <span class="pr-2">@checkout.time_shift:00</span>
+      </span>
+    </li>
+    <li class="column is-two-thirds has-text-grey is-italic">
+      Kết thúc: @checkout.time_name
+    </li>
+  }
+
+}
+
+@code {
+  [Parameter]
+  public HrmTimekeepingModel.TimeData checkin { get; set; }
+  [Parameter]
+  public HrmTimekeepingModel.TimeData checkout { get; set; }
+  [Parameter]
+  public bool isEarly { get; set; }
+
+  
+}

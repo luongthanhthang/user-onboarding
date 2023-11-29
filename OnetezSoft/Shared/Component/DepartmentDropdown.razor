@@ -1,0 +1,85 @@
+
+<Dropdown DropdownClass="@css" Toggle=@toggle MenuStyle="width: 300px;">
+   <Trigger>
+      <a class="icon-text">
+         <span class="has-text-link is-block" style="max-width: 200px;">
+            @GetName()
+         </span>
+         <span class="icon">
+            <i class="material-icons-outlined is-size-5">arrow_drop_down</i>
+         </span>
+      </a>
+   </Trigger>
+   <MenuContent>
+      <a class="dropdown-item is-family-code" @onclick="() => Selected(null)">
+         @main
+      </a>
+      @foreach (var item in departments)
+      {
+         <a class="dropdown-item is-family-code @(department == item.id ? "has-text-link" : "")"
+         @onclick="() => Selected(item)" style="white-space: normal;">
+            @((MarkupString)item.name.Replace("'", "&nbsp;"))
+         </a>
+      }
+   </MenuContent>
+</Dropdown>
+
+@code {
+   [CascadingParameter]
+   public LayoutMain Layout { get; set; }
+   [Parameter]
+   public string department { get; set; }
+   [Parameter]
+   public string main { get; set; } = "Tất cả phòng ban";
+   [Parameter]
+   public int level { get; set; }
+   [Parameter]
+   public string css { get; set; } = "is-left";
+   [Parameter]
+   public bool isMember { get; set; } = false;
+   [Parameter]
+   public EventCallback<string> OnUpdate { get; set; }
+   private List<DepartmentModel.SelectList> departments = new();
+
+   private string name = "";
+   private bool toggle;
+
+   protected override async Task OnInitializedAsync()
+   {
+      if(isMember)
+      departments = await DbDepartment.GetSelectListOfUser(Layout.Company.id, Layout.User.departments_id, null);
+    else
+      departments = await DbDepartment.GetSelectList(Layout.Company.id, null, 0, null);
+    if(level > 0)
+      departments.RemoveAll(x => x.level > level);
+  }
+
+  private string GetName()
+  {
+    if(!string.IsNullOrEmpty(name))
+      return name;
+    if(!string.IsNullOrEmpty(department))
+    {
+      var result = departments.FirstOrDefault(x => x.id == department);
+      if(result != null)
+        return result.name.Replace("└─", "").Replace("'", "");
+    }
+    return main;
+  }
+
+  private async Task Selected(DepartmentModel.SelectList item)
+  {
+    if(item == null)
+    {
+      department = null;
+      name = main;
+    }
+    else
+    {
+      department = item.id;
+      name = item.name.Replace("└─", "").Replace("'", "");
+    }
+    toggle = false;
+    await OnUpdate.InvokeAsync(department);
+  }
+}

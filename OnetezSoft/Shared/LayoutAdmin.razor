@@ -1,0 +1,89 @@
+﻿@inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
+@inject ProtectedLocalStorage storage
+@inject NavigationManager navigation
+@inject GlobalService globalService
+
+<CascadingValue Value="this">
+  <main id="main" class="client columns is-gapless is-multiline has-background-white">
+    @if (User != null && User.active)
+    {
+      if (User.is_admin && navigation.Uri.Contains("/admin"))
+      {
+        <aside class="column is-narrow">
+          <SidebarAdmin />
+        </aside>
+        <section id="content" class="column">
+          <HeaderAdmin />
+          @Body
+        </section>
+      }
+      else if(User.is_customer && navigation.Uri.Contains("/client/"))
+      {
+        <aside class="column is-narrow">
+          <SidebarClient />
+        </aside>
+        <section id="content" class="column">
+          <HeaderClient />
+          @Body
+        </section>
+      }
+      else
+      {
+        <section class="column is-full is-flex is-vcentered is-centered">
+          <div class="has-text-danger has-text-weight-semibold">
+            Bạn không có quyền truy cập vào trang này !
+          </div>
+        </section>
+      }
+    }
+    else if (User != null && !User.active)
+    {
+      <section class="column is-full is-flex is-vcentered is-centered">
+        <div class="has-text-danger has-text-weight-semibold">
+          Tài khoản của bạn đã bị khóa !
+        </div>
+      </section>
+    }
+    else
+    {
+      <section class="column is-full movingBallG"></section>
+    }
+  </main>
+</CascadingValue>
+
+@code {
+  public UserModel User = null;
+
+  public int PageSize = 25;
+
+  public long MaxFileSize = 10 * 1024000;
+
+  public async Task Tagline(string message = "Đã xảy ra lỗi không mong muốn. Vui lòng thử lại hoặc liên hệ với chúng tôi!")
+  {
+    await JSRuntime.InvokeVoidAsync("tagline", false, message);
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+    {
+      try
+      {
+        var cookieUser = await JSRuntime.InvokeAsync<string>("getCookie", "_user");
+        if (!string.IsNullOrEmpty(cookieUser))
+          User = await DbMainUser.GetbySession(cookieUser, globalService);
+
+        if(User == null)
+          navigation.NavigateTo("/logout", true);
+
+      }
+      catch (Exception ex)
+      {
+        await JSRuntime.InvokeAsync<string>("console.warn", "LayoutAdmin: " + ex.ToString());
+        navigation.NavigateTo("/", true);
+      }
+      StateHasChanged();
+    }
+  }
+}

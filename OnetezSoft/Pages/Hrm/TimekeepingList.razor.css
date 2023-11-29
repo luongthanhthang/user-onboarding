@@ -1,0 +1,12 @@
+@media (max-width: 768px) {
+  .table .has-background-info,
+  .table .has-background-primary {
+    background: transparent !important;
+  }
+}
+
+.td-heading {
+  background-color: #ECF0FF;
+  border-radius: 5px;
+  padding: 10px;
+}

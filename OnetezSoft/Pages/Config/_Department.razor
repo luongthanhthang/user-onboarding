@@ -1,0 +1,110 @@
+﻿@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject GlobalService globalService
+
+@if (Current != null)
+{
+  <li>
+    <a>
+      <span class="has-text-weight-semibold" @onclick="() => ViewItem(Current.id)">
+        @Current.name
+      </span>
+      <span class="has-text-link" @onclick="() => StaffItem(Current.id)">
+        (@Current.members_id.Count nhân viên)
+      </span>
+      <span class="delete is-pulled-right" @onclick="() => DeleteItem(Current)"></span>
+    </a>
+    @if (childs.Count > 0)
+    {
+      <ul class="mr-0">
+        @foreach (var child in childs)
+        {
+          <_Department CompanyId="@CompanyId" DepartmentAll="@DepartmentAll" Current="child" OnViewDetail="CallbackChild" />
+        }
+      </ul>
+    }
+  </li>
+}
+
+@code {
+  [CascadingParameter]
+  public LayoutMain Layout { get; set; }
+  [Parameter]
+  public string CompanyId { get; set; }
+  [Parameter]
+  public List<DepartmentModel> DepartmentAll { get; set; } = new();
+  [Parameter]
+  public DepartmentModel Current { get; set; }
+  [Parameter]
+  public EventCallback<string> OnViewDetail { get; set; }
+
+  private List<DepartmentModel> childs = new();
+
+  protected override void OnInitialized()
+  {
+    childs = DepartmentAll.Where(x => x.parent == Current.id).ToList();
+  }
+
+  private void ViewItem(string id)
+  {
+    OnViewDetail.InvokeAsync($"depart_{id}");
+  }
+
+  private void StaffItem(string id)
+  {
+    OnViewDetail.InvokeAsync($"team_{id}");
+  }
+
+  private async Task<bool> DeleteItem(DepartmentModel item)
+  {
+    bool _success = true;
+    try
+    {
+      if (!await JSRuntime.InvokeAsync<bool>("confirm",
+          $"Khi xóa phòng ban toàn bộ dữ liệu của phòng ban sẽ bị xóa.\nBạn có chắc muốn xóa phòng ban {item.name} ?"))
+        return false;
+
+      item.delete = true;
+      await DbDepartment.Update(CompanyId, item);
+      Current = null;
+
+      var childAll = await DbDepartment.GetAllChilds(CompanyId, item.id, null);
+      foreach (var child in childAll)
+      {
+        child.delete = true;
+        await DbDepartment.Update(CompanyId, child);
+      }
+
+      if (Layout.User.role == 2)
+      {
+        // Gửi thông báo chuông
+        var adminList = await DbUser.GetManager(Layout.Company.id, true, globalService);
+        foreach (var user in adminList)
+          await DbNotify.Create(Layout.Company.id, 23, item.name, user.id, Layout.User.id);
+      }
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "DeleteItem()", ex.ToString(), Layout.User.id, Layout.Company.name);
+      await Layout.Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private void CallbackChild(string id)
+  {
+    if (id == "delete")
+    {
+      OnViewDetail.InvokeAsync("delete");
+      return;
+    }
+
+    if (id.Contains("depart"))
+      ViewItem(id.Split("_").Last());
+    else
+      StaffItem(id.Split("_").Last());
+  }
+
+}

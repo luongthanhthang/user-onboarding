@@ -1,0 +1,166 @@
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject GlobalService globalService
+
+@if (Nav != null)
+{
+  <section
+    id="sidebar" 
+    class="@(Navless ? "is_less" : "") @(Layout.User.custom.sidebar_pin ? "is_pin" : "")" >
+    <a class="button is-white toggle">
+      <span class="icon" @onclick="ToggleSidebar">
+        <span class="material-icons-outlined">
+          @(Navless ? "menu" : "menu_open")
+        </span>
+      </span>
+    </a>
+    <a class="button is-white module-pin">
+      <span class="icon is-hidden-mobile" @onclick="PinSidebar" style="margin-left:auto">
+        <span class="is-size-6 @(Layout.User.custom.sidebar_pin ? "material-icons" : "material-icons-outlined")">
+          push_pin
+        </span>
+      </span>
+    </a>
+    @if (subTabName != null)
+    {
+      <a class="icon-text module-name">
+        @if (!subTabName.icon.IsEmpty())
+        {
+          <span class="icon">
+            <span class="material-icons-outlined">
+              @subTabName.icon
+            </span>
+          </span>
+        }
+        <span>
+          @subTabName.name
+        </span>
+      </a>
+    }
+    <nav class="scrolly mt-4">
+      <ul>
+        @foreach (var main in Nav.childs)
+        {
+          <li class="@(main.active || (subTabName == null ? false : main.childs.Count == 0 ? main.link == subTabName.link : subTabName.link.Contains(main.link)) ? "is-active" : "")">
+            @if (main.childs.Count > 0)
+            {
+              <a class="button is-white" @onclick="() => main.active = !main.active">
+                <span class="icon">
+                  <i class="material-icons">@main.icon</i>
+                </span>
+                <span>@main.name</span>
+                <span class="icon">
+                  <i class="material-icons is-size-6">arrow_right</i>
+                </span>
+              </a>
+              <ul>
+                @foreach (var child in main.childs)
+                {
+                  <li class="@(child.active || (subTabName == null ? false : subTabName.link == child.link) ? "is-active" : "")">
+                    <a class="button is-white" href="/@child.link">
+                      <span>@child.name</span>
+                    </a>
+                  </li>
+                }
+              </ul>
+            }
+            else
+            {
+              <a class="button is-white" href="/@main.link">
+                <span class="icon">
+                  <i class="material-icons is-size-6">@main.icon</i>
+                </span>
+                <span>@main.name</span>
+              </a>
+            }
+          </li>
+        }
+      </ul>
+    </nav>
+    <a class="button is-white btn_logout" @onclick="Logout" title="Đăng xuất">
+      <span class="icon">
+        <i class="material-icons-round is-size-6">logout</i>
+      </span>
+      <span>Đăng xuất</span>
+    </a>
+  </section>
+  @if(!Layout.IsMobile || !Navless)
+  {
+    <section class="sidebar_overlay" @onclick="ToggleSidebar"></section>
+  }
+}
+
+@code {
+  [CascadingParameter]
+  public LayoutMain Layout { get; set; }
+
+  [Parameter]
+  public NavModel Nav { get; set; }
+
+  private string cycleName = string.Empty;
+
+  private bool Navless = true;
+  private NavModel subTabName = null;
+
+  protected override void OnParametersSet()
+  {
+    var currentLocation = navigation.Uri.Replace(navigation.BaseUri, "");
+
+    subTabName = null;
+
+    if (Layout.ListNav.childs.Count == 0)
+    {
+      subTabName = null;
+    }
+    else
+    {
+      foreach (var childs in Layout.ListNav.childs)
+      {
+        if (currentLocation.Contains(childs.link))
+        {
+          subTabName = childs;
+        }
+        if (childs.childs.Count > 0)
+        {
+          foreach (var subchild in childs.childs)
+          {
+            if (currentLocation.Contains(subchild.link))
+            {
+              subTabName = subchild;
+            }
+          }
+        }
+      }
+    }
+
+    Navless = true;
+  }
+
+  private void ToggleSidebar()
+  {
+    if(!Layout.User.custom.sidebar_pin || Layout.IsMobile)
+    {
+      Navless = !Navless;
+    }
+  }
+
+  private async Task Logout()
+  {
+    if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Bạn có chắc muốn đăng xuất khỏi phần mềm ?"))
+      return;
+
+    navigation.NavigateTo("/logout", true);
+  }
+
+  private bool CheckAccess(string productId)
+  {
+    return ProductService.CheckAccess(Layout.Company, Layout.User, productId, out string message);
+  }
+
+  private async Task PinSidebar()
+  {
+    Layout.User.custom.sidebar_pin = !Layout.User.custom.sidebar_pin;
+    await Layout.ToggleNavLess();
+    await DbUser.Update(Layout.Company.id, Layout.User, globalService);
+  }
+}

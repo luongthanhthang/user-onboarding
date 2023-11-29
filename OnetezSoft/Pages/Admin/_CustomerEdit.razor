@@ -1,0 +1,286 @@
+﻿@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject GlobalService globalService
+
+@if (model != null)
+{
+  <section class="modal is-active">
+    <div class="modal-background"></div>
+    <section class="modal-card has_bg">
+      <section class="modal-card-head is-success" style="background-image: url('/images/illustrations/customer.png')">
+        <div class="modal-card-title">
+          <div class="title has-text-white">
+            @(string.IsNullOrEmpty(model.id) ? "Tạo tài khoản khách hàng" : "Thông tin khách hàng")
+          </div>
+          <div class="subtitle has-text-white">
+            Tài khoản khách hàng cho phép khách hàng tạo tổ chức,
+            <br />
+            mua sản phẩm và thêm người dùng sản phẩm
+          </div>
+        </div>
+        <a class="delete is-medium" @onclick="Cancel"></a>
+      </section>
+      <section class="modal-card-body">
+        <form class="columns" autocomplete="off">
+          <div class="column is-one-quarter">
+            <div class="image is-128x128 is-radius mb-3">
+              <img src="@model.avatar" />
+            </div>
+            <a class="button is-white is-small is-fullwidth @(uploading ? "is-loading" : "")"
+               onclick="document.getElementById('file').click()">
+              <span class="icon">
+                <i class="material-icons-sharp is-size-6">file_upload</i>
+              </span>
+              <span>Tải ảnh lên</span>
+            </a>
+            <InputFile OnChange="Upload" accept="image/*" class="is-hidden" id="file" />
+          </div>
+
+          <div class="column is-three-quarters">
+            <div class="field has-text-weight-bold">
+              Thông tin tài khoản
+            </div>
+            @if (string.IsNullOrEmpty(model.id))
+            {
+              <div class="field">
+                <div class="control has-icons-left">
+                  <input @bind="model.email" type="email" class="input is_line" placeholder="Nhập email (*)" />
+                  <span class="icon is-left has-text-black">
+                    <i class="material-icons-round is-size-6">account_circle</i>
+                  </span>
+                </div>
+              </div>
+            }
+            else
+            {
+              <div class="field">
+                <div class="control has-icons-left">
+                  <input value="@model.email" type="email" class="input is_line" readonly />
+                  <span class="icon is-left has-text-black">
+                    <i class="material-icons-round is-size-6">account_circle</i>
+                  </span>
+                </div>
+              </div>
+            }
+            <div class="field has-text-weight-bold mt-5">
+              Thông tin cơ bản
+            </div>
+            <ul class="columns is-multiline is-variable is-2">
+              <li class="column is-half">
+                <div class="field">
+                  <div class="control has-icons-left">
+                    <input @bind="model.last_name" type="text" class="input is_line" placeholder="Nhập họ (*)" />
+                    <span class="icon is-left has-text-black">
+                      <i class="material-icons-round is-size-6">person</i>
+                    </span>
+                  </div>
+                </div>
+              </li>
+              <li class="column is-half">
+                <div class="field">
+                  <div class="control has-icons-left">
+                    <input @bind="model.first_name" type="text" class="input is_line" placeholder="Nhập tên (*)" />
+                    <span class="icon is-left has-text-black">
+                      <i class="material-icons-round is-size-6">person</i>
+                    </span>
+                  </div>
+                </div>
+              </li>
+              <li class="column is-half">
+                <div class="field">
+                  <div class="control has-icons-left">
+                    <input @bind="model.phone" type="text" class="input is_line" placeholder="Số điện thoại (*)" />
+                    <span class="icon is-left has-text-black">
+                      <i class="material-icons-round is-size-6">call</i>
+                    </span>
+                  </div>
+                </div>
+              </li>
+              <li class="column is-half">
+                <div class="field">
+                  <div class="control has-icons-left">
+                    <input @bind="model.social" type="text" class="input is_line" placeholder="Liên hệ khác" />
+                    <span class="icon is-left has-text-black">
+                      <i class="material-icons-round is-size-6">share</i>
+                    </span>
+                  </div>
+                </div>
+              </li>
+              <li class="column is-full">
+                <div class="field">
+                  <div class="control has-icons-left">
+                    <textarea @bind="model.note" class="textarea is_line" rows="2" placeholder="Thông tin ghi nhớ" />
+                    <span class="icon is-left has-text-black">
+                      <i class="material-icons-round is-size-6">note_add</i>
+                    </span>
+                  </div>
+                </div>
+              </li>
+            </ul>
+            <div class="field mt-5">
+              <label class="checkbox is-size-7">
+                <input @bind="model.active" type="checkbox" />
+                <span>Kích hoạt</span>
+              </label>
+            </div>
+          </div>
+        </form>
+      </section>
+      <section class="modal-card-foot is-right">
+        <a class="button" @onclick="Cancel">
+          <span class="icon">
+            <i class="material-icons-round is-size-6">chevron_left</i>
+          </span>
+          <span class="is-size-7">Trở về</span>
+        </a>
+        @if (string.IsNullOrEmpty(model.id))
+        {
+          <a class="button is-link" @onclick="Create">
+            <span class="icon">
+              <i class="material-icons-round is-size-6">add</i>
+            </span>
+            <span class="is-size-7">Tạo mới</span>
+          </a>
+        }
+        else
+        {
+          <a class="button is-link" @onclick="Update">
+            <span class="icon">
+              <i class="material-icons-round is-size-6">done</i>
+            </span>
+            <span class="is-size-7">Cập nhật</span>
+          </a>
+        }
+      </section>
+    </section>
+  </section>
+}
+
+@code {
+  [CascadingParameter]
+  public LayoutAdmin Layout { get; set; }
+  [Parameter]
+  public UserModel model { get; set; }
+  [Parameter]
+  public EventCallback<bool> OnUpdate { get; set; }
+
+  private async Task Cancel()
+  {
+    await OnUpdate.InvokeAsync(false);
+  }
+
+  private async Task<bool> Create()
+  {
+    bool _success = true;
+    try
+    {
+      if (await Validation())
+      {
+        var check = await DbMainUser.GetbyEmail(model.email, globalService);
+        if (check == null)
+        {
+          await DbMainUser.Create(model);
+          // Gửi email cấp tài khoản
+          await JSRuntime.InvokeVoidAsync("tagline", true, "Tạo tài khoản thành công, vui lòng kiểm tra email");
+          new Task(() =>
+          {
+            EmailService.UserInfo(model.email, model.id, model.FullName, "công ty bạn", out string message);
+          }).Start();
+
+          await OnUpdate.InvokeAsync(true);
+        }
+        else if (!check.is_customer)
+        {
+          if (string.IsNullOrEmpty(check.phone))
+            check.phone = model.phone;
+          if (string.IsNullOrEmpty(check.social))
+            check.social = model.social;
+          check.note = model.note;
+          check.active = model.active;
+          check.is_customer = true;
+          await DbMainUser.Update(check, globalService);
+          await OnUpdate.InvokeAsync(true);
+        }
+        else
+          await Tagline("Email này đã được sử dụng, vui lòng sử dụng email khác!");
+      }
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "Create()", ex.ToString(), Layout.User.id);
+      await Layout.Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private async Task<bool> Update()
+  {
+    bool _success = true;
+    try
+    {
+      if (await Validation())
+      {
+        await DbMainUser.Update(model, globalService);
+        await OnUpdate.InvokeAsync(true);
+      }
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "Update()", ex.ToString(), Layout.User.id);
+      await Layout.Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private async Task<bool> Validation()
+  {
+    model.email = !string.IsNullOrEmpty(model.email) ? model.email.Trim().ToLower() : "";
+    if (string.IsNullOrEmpty(model.email))
+      await Tagline("Bạn chưa nhập địa chỉ email!");
+    else if (!model.email.Contains("@") || model.email.Length < 12)
+      await Tagline("Địa chỉ email không đúng!");
+    else if (string.IsNullOrEmpty(model.phone))
+      await Tagline("Bạn chưa nhập số điện thoại!");
+    else if (string.IsNullOrEmpty(model.first_name) || string.IsNullOrEmpty(model.last_name))
+      await Tagline("Bạn chưa nhập họ và tên cho tài khoản!");
+    else
+      return true;
+
+    return false;
+  }
+
+  private bool uploading = false;
+  private async Task Upload(InputFileChangeEventArgs e)
+  {
+    uploading = true;
+    foreach (var file in e.GetMultipleFiles())
+    {
+      try
+      {
+        if (file.Size <= Layout.MaxFileSize)
+        {
+          var fileStream = new StreamContent(file.OpenReadStream(Layout.MaxFileSize));
+          model.avatar = await Files.SaveFileAsync(fileStream, file.Name);
+        }
+        else
+          await Tagline($"Chỉ cho phép file tối đa {string.Format("{0:0,0}", Layout.MaxFileSize / 1024000)} MB");
+      }
+      catch (Exception ex)
+      {
+        await Tagline($"Không thể tải ảnh lên: {ex.ToString()}");
+        uploading = false;
+        return;
+      }
+    }
+    uploading = false;
+  }
+
+  private async Task Tagline(string message)
+  {
+    await JSRuntime.InvokeVoidAsync("tagline", false, message);
+  }
+}

@@ -1,0 +1,674 @@
+@page "/config/timekeeping/dayoff"
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject GlobalService globalService
+
+<PageTitle>@_title</PageTitle>
+
+@if (!_access)
+{
+  <PopupNoRole />
+}
+else
+{
+  @if (isLoading)
+  {
+    <LoadingModel />
+  }
+  else
+  {
+    <div class="tabs mt-0">
+      <div class="tabs_name">
+        <div class="title is-5 has-text-info is-uppercase">
+          Ngày nghỉ
+        </div>
+      </div>
+      <ul>
+        <li class="@(tab == 1 ? "is-active" : "")">
+          <a @onclick="() => ChangeTab(1)">
+            <span class="font_14 has-text-weight-medium">Nghỉ lễ</span>
+          </a>
+        </li>
+        <li class="@(tab == 2 ? "is-active" : "")">
+          <a @onclick="() => ChangeTab(2)">
+            <span class="font_14 has-text-weight-medium">Nghỉ tuần</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+    <ul class="is-flex is-align-items-center is-justify-content-center mb-2">
+      <li style="flex: 1">
+        <h1 class="has-text-weight-semibold mb-2">
+          @(tab == 1 ? "Cấu hình nghỉ lễ" : "Cấu hình nghỉ tuần")
+        </h1>
+      </li>
+      <li class="has-text-right">
+        @if (tab == 1)
+        {
+          @* <a class="button mr-3" @onclick="() => FetchDataHolidays(DateTime.Now.Year)">
+    <span class="icon">
+    <span class="material-icons-outlined is-size-6">refresh</span>
+    </span>
+    <span>Lấy dữ liệu ngày lễ trong năm</span>
+    </a> *@
+        }
+        <a class="button is-link" @onclick="() => EditItem(null)">
+          <span class="icon">
+            <span class="material-icons-outlined is-size-6">add</span>
+          </span>
+          <span>Thêm mới</span>
+        </a>
+      </li>
+    </ul>
+    <div class="mb-2">
+      <div class="is-flex is-align-items-center mb-2 is-flex-wrap-wrap" style="gap: 0 5px">
+        <div class="is-flex is-align-items-center">
+          <a class="icon" title="Đã khoá">
+            <i class="material-icons-outlined is-size-6"> lock	</i>
+          </a>
+          <span class="has-text-grey is-italic">Đã khoá:</span>
+        </div>
+        <p class="has-text-grey is-italic">Khi đang trong thời gian áp dụng và có nhân viên áp dụng ngày nghỉ này.</p>
+      </div>
+      <div class="is-flex is-align-items-center is-flex-wrap-wrap" style="gap: 0 5px">
+        <div class="is-flex is-align-items-center">
+          <a class="icon" title="Đã khoá">
+            <i class="material-icons-outlined is-size-6"> lock_open	</i>
+          </a>
+          <span class="has-text-grey is-italic">Chưa khoá:</span>
+        </div>
+        <p class="has-text-grey is-italic">Khi đã qua thời gian áp dụng hoặc không có nhân viên nào áp dụng ngày nghỉ này.</p>
+      </div>
+    </div>
+    <div id="scrollbox" class="scrolly inner_section" style="flex:1">
+      <table class="table is-fullwidth sticky only_desktop is-vcentered is-responsive">
+        <thead>
+          <tr>
+            <th class="sticky" style="left:0" width="90px">Trạng thái</th>
+            <th class="sticky last" style="left:90px" width="200px">Tên ngày nghỉ</th>
+            <th align="center">Thời gian áp dụng</th>
+            <th align="center">Nhân viên áp dụng</th>
+            <th align="center">Ngày cập nhật</th>
+            <th align="center">Xử lý</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach (var item in (tab == 1 ? dataListHoliday : dataListWeek))
+          {
+            var isLocked = HrmService.CheckLockedDayOff(item);
+            <tr>
+              <td class="sticky" style="left:0;">
+                <label class="td-label">Trạng thái</label>
+                <div class="td-value">
+                  @if (isLocked)
+                  {
+                    <a class="icon has-text-link" title="Đã khoá">
+                      <i class="material-icons-outlined is-size-5">
+                        lock
+                      </i>
+                    </a>
+                  }
+                  else
+                  {
+                    <a class="icon has-text-link" title="Chưa khoá">
+                      <i class="material-icons-outlined is-size-5">
+                        lock_open
+                      </i>
+                    </a>
+                  }
+                </div>
+              </td>
+              <td class="sticky last" style="left:90px">
+                <label class="td-label">Tên ngày nghỉ</label>
+                <div class="td-value">
+                  <span>@item.name</span>
+                </div>
+              </td>
+              <td align="center">
+                <label class="td-label">Thời gian áp dụng</label>
+                <div class="td-value">
+                  <span>@string.Format("{0:dd/MM/yyyy}", new DateTime(item.start))</span>
+                  <span>@string.Format(" - {0:dd/MM/yyyy}", new DateTime(item.end))</span>
+                </div>
+              </td>
+              <td align="center">
+                <label class="td-label">Nhân viên áp dụng</label>
+                <div class="td-value">
+                  @if (item.salary_users.Count > 0)
+                  {
+                    <p>@item.salary_users.Count nhân viên áp dụng có tính lương</p>
+                  }
+                  @if (item.non_salary_users.Count > 0)
+                  {
+                    <p>@item.non_salary_users.Count nhân viên áp dụng không tính lương</p>
+                  }
+                </div>
+              </td>
+              <td align="center">
+                <label class="td-label">Ngày cập nhật</label>
+                <div class="td-value">
+                  @string.Format("{0:dd/MM/yyyy}", new DateTime(item.create))
+                </div>
+              </td>
+              <td align="center">
+                @if (!isLocked)
+                {
+                  var isSoftDeleted = DateTime.Today.Ticks > item.start;
+                  var checkUser = item.non_salary_users.Count == 0 && item.salary_users.Count == 0;
+                  if (isSoftDeleted)
+                  {
+                    <label class="td-label">Xử lý</label>
+                    <div class="td-value">
+                      @if (checkUser)
+                      {
+                        <a class="icon has-text-danger" title="Xóa" @onclick="() => DeleteItem(item)">
+                          <i class="material-icons-outlined is-size-5">
+                            delete
+                          </i>
+                        </a>
+                      }
+                      else
+                      {
+                        <a class="icon has-text-danger" title="Xóa" @onclick="() => DeleteItem(item, true)">
+                          <i class="material-icons-outlined is-size-5">
+                            delete
+                          </i>
+                        </a>
+                      }
+                    </div>
+                  }
+                  else
+                  {
+                    <label class="td-label">Xử lý</label>
+                    <div class="td-value">
+                      <a class="icon has-text-link" title="Chỉnh sửa" @onclick="() => EditItem(item)">
+                        <i class="material-icons-outlined is-size-5">
+                          edit
+                        </i>
+                      </a>
+                      <a class="icon has-text-danger" title="Xóa" @onclick="() => DeleteItem(item)">
+                        <i class="material-icons-outlined is-size-5">
+                          delete
+                        </i>
+                      </a>
+                    </div>
+                  }
+                }
+                else
+                {
+                  var countDown = HrmService.CountDownDayOff(item.end);
+                  <label class="td-label">Còn lại</label>
+                  <div class="td-value">
+                    <span>Còn lại:</span>
+                    <span class="has-text-link has-text-weight-medium">	@countDown</span>
+                  </div>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (isFetching)
+  {
+    var year = DateTime.Now.Year;
+    <_GetHolidaysModel year="year" holidaysList="holidaysList" OnUpdate="OnUpdateFetch" OnCancel="OffFetch" />
+  }
+  @if (current != null)
+  {
+    <div class="modal is-active">
+      <div class="modal-background"></div>
+      <div class="modal-card p-1" style="overflow: visible;">
+        <div class="modal-card-head">
+          <div class="modal-card-title">
+            @(string.IsNullOrEmpty(current.id) ? "Tạo ngày nghỉ mới" : "Chỉnh sửa ngày nghỉ")
+          </div>
+          <a class="delete" @onclick="Cancel"></a>
+        </div>
+        <div class="modal-card-body" style="overflow: visible;">
+          <form @onsubmit="Update">
+            <div class="field">
+              <label class="label">Tên ngày nghỉ</label>
+              <div class="control">
+                <input @bind="current.name" type="text" class="input" placeholder="Nhập tên ngày nghỉ..." />
+              </div>
+            </div>
+            <div class="field is-grouped is-flex-wrap-wrap">
+              <div class="control">
+                <label class="label">Bắt đầu nghỉ</label>
+                <div class="control has-icons-left">
+                  <div class="input">
+                    <DateRangePicker SingleDatePicker="true" @bind-StartDate="StartDate" />
+                  </div>
+                  <span class="icon is-left">
+                    <i class="material-icons-outlined">
+                      calendar_today
+                    </i>
+                  </span>
+                </div>
+              </div>
+              <div class="control is-expanded is-hidden-mobile">
+              </div>
+              <div class="control">
+                <label class="label">Kết thúc nghỉ</label>
+                <div class="control has-icons-left">
+                  <div class="input">
+                    <DateRangePicker SingleDatePicker="true" @bind-StartDate="EndDate" />
+                  </div>
+                  <span class="icon is-left">
+                    <i class="material-icons-outlined">
+                      calendar_today
+                    </i>
+                  </span>
+                </div>
+              </div>
+            </div>
+            @if (current.loop == 2)
+            {
+              <div class="field">
+                <label class="label">Chọn thứ trong tuần</label>
+                <div class="days-wrap">
+                  <div class="day-tag @(current.loop_week.mon ? "active" : "default")" @onclick='() => ChangeWeekApply("mon")'>Thứ 2</div>
+                  <div class="day-tag @(current.loop_week.tue ? "active" : "default")" @onclick='() => ChangeWeekApply("tue")'>Thứ 3</div>
+                  <div class="day-tag @(current.loop_week.wed ? "active" : "default")" @onclick='() => ChangeWeekApply("wed")'>Thứ 4</div>
+                  <div class="day-tag @(current.loop_week.thu ? "active" : "default")" @onclick='() => ChangeWeekApply("thu")'>Thứ 5</div>
+                  <div class="day-tag @(current.loop_week.fri ? "active" : "default")" @onclick='() => ChangeWeekApply("fri")'>Thứ 6</div>
+                  <div class="day-tag @(current.loop_week.sat ? "active" : "default")" @onclick='() => ChangeWeekApply("sat")'>Thứ 7</div>
+                  <div class="day-tag @(current.loop_week.sun ? "active" : "default")" @onclick='() => ChangeWeekApply("sun")'>Chủ nhật</div>
+                </div>
+              </div>
+            }
+            <div class="field">
+              <div class="control is-flex is-flex-direction-column" style="gap: 10px">
+                <label class="label">Nhân viên áp dụng và ngày nghỉ tính lương</label>
+                <div class="control is-flex is-flex-direction-column" style="gap: 10px;">
+                  <div class="is-flex is-align-items-center">
+                    @if (current.salary_users.Count > 0)
+                    {
+                      isSalaryChecked = true;
+                      <label class="checkbox mr-2">
+                        <input type="checkbox" @onchange="CheckedSalary" checked />
+                        Ngày nghỉ tính lương
+                      </label>
+                    }
+                    else
+                    {
+                      <label class="checkbox mr-2">
+                        <input type="checkbox" @onchange="CheckedSalary" />
+                        Ngày nghỉ tính lương
+                      </label>
+                    }
+                  </div>
+                  @if (isSalaryChecked)
+                  {
+                    <div style="margin-left: 20px;">
+                      <label class="checkbox mr-2">Nhân viên áp dụng:</label>
+                      <_MemberDayOff members="current.salary_users" sources="sourcesSalary" isEdit="true" isNew="Shared.IsEmpty(current.id)" isUp="true" OnUpdate="OnUpdateMemberSalary" />
+                    </div>
+                  }
+                </div>
+                <div class="control is-flex is-flex-direction-column" style="gap: 10px;">
+                  <div class="is-flex is-align-items-center">
+                    @if (current.non_salary_users.Any())
+                    {
+                      isNonSalaryChecked = true;
+                      <label class="checkbox mr-2">
+                        <input type="checkbox" @onchange="CheckedNonSalary" checked />
+                        Ngày nghỉ không tính lương
+                      </label>
+                    }
+                    else
+                    {
+                      <label class="checkbox mr-2">
+                        <input type="checkbox" @onchange="CheckedNonSalary" />
+                        Ngày nghỉ không tính lương
+                      </label>
+                    }
+                  </div>
+                  @if (isNonSalaryChecked)
+                  {
+                    <div style="margin-left: 20px;">
+                      <label class="checkbox mr-2">Nhân viên áp dụng:</label>
+                      <_MemberDayOff members="current.non_salary_users" sources="sourcesNonSalary" isEdit="true" isNew="Shared.IsEmpty(current.id)" isUp="true" OnUpdate="OnUpdateMemberNonSalary" />
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="field is-grouped mt-5 is-justify-content-flex-end">
+              <div class="control">
+                <a class="button" @onclick="() => current = null">
+                  Hủy
+                </a>
+              </div>
+              <div class="control">
+                <a class="button is-link @(isLoading ? "is-loading" : "")" @onclick="Update">
+                  <span class="icon">
+                    <span class="material-icons-outlined is-size-6">
+                      done
+                    </span>
+                  </span>
+                  <span>Cập nhật</span>
+                </a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  }
+}
+
+
+@code {
+  [CascadingParameter]
+  public LayoutMain Layout { get; set; }
+  private string _title = "Cấu hình ngày nghỉ";
+  private string msgAccess = string.Empty;
+
+  private List<HrmDayOffModel> dataList = new();
+  private List<HrmDayOffModel> dataListTemp = new();
+  private List<HrmDayOffModel> dataListWeek = new();
+  private List<HrmDayOffModel> dataListHoliday = new();
+
+  private HrmDayOffModel current = null;
+  DateTimeOffset? StartDate { get; set; } = DateTime.Today.AddDays(1);
+  DateTimeOffset? EndDate { get; set; } = DateTime.Today.AddDays(1);
+  private bool _access = false;
+
+  private List<MemberModel> sourcesSalary = new();
+  private List<MemberModel> sourcesNonSalary = new();
+  private bool isSalaryChecked = false;
+  private bool isNonSalaryChecked = false;
+  private int tab = 1;
+  private bool isFetching = false;
+  public List<HrmDayOffModel> holidaysList = new();
+  private bool isLoading = false;
+
+
+  protected override async Task OnInitializedAsync()
+  {
+    var shareStorage = await globalService.GetShareStorage(Layout.Company.id);
+    sourcesSalary = shareStorage.MemberList;
+    sourcesNonSalary = shareStorage.MemberList;
+    _access = Layout.User.role == 1 || (Layout.User.role == 2 && Layout.User.role_manage.timekeeping);
+    await GetData();
+  }
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (firstRender)
+      await JSRuntime.InvokeVoidAsync("dragScrollX");
+  }
+
+  private async Task GetData()
+  {
+    isLoading = true;
+    dataList = await DbHrmDayOff.GetAll(Layout.Company.id);
+    dataListTemp = dataList.ToList();
+    dataListWeek = dataListTemp.Where(x => x.loop == 2).ToList();
+    dataListHoliday = dataListTemp.Where(x => x.loop == 1).ToList();
+    isLoading = false;
+  }
+
+  private async Task DeleteItem(HrmDayOffModel item, bool isSoftDelete = false)
+  {
+    if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Bạn có chắc muốn xóa: {item.name}?"))
+      return;
+
+
+    if (isSoftDelete)
+      await DbHrmDayOff.SoftDelete(Layout.Company.id, item.id);
+    else
+      await DbHrmDayOff.Delete(Layout.Company.id, item.id);
+
+    await JSRuntime.InvokeVoidAsync("tagline", true, "Đã xoá ngày nghỉ thành công!");
+    await SendNotify(item, 812);
+    dataListTemp.RemoveAll(x => x.id == item.id);
+    dataListWeek = dataListTemp.Where(x => x.loop == 2).ToList();
+    dataListHoliday = dataListTemp.Where(x => x.loop == 1).ToList();
+  }
+
+  private async Task EditItem(HrmDayOffModel item)
+  {
+    if (item == null)
+    {
+      current = new()
+        {
+          start = Convert.ToDateTime(DateTime.Now.AddDays(1).ToShortDateString()).Ticks,
+          end = tab == 1 ? Convert.ToDateTime(DateTime.Now.AddDays(2).ToShortDateString()).Ticks : Convert.ToDateTime(DateTime.Now.AddDays(7).ToShortDateString()).Ticks,
+          loop = tab,
+          loop_week = new()
+        };
+    }
+    else
+    {
+      var shareStorage = await globalService.GetShareStorage(Layout.Company.id);
+      var userList = shareStorage.MemberList;
+      current = item;
+      sourcesNonSalary = userList.Where(x => !current.salary_users.Contains(x.id)).ToList();
+      sourcesSalary = userList.Where(x => !current.non_salary_users.Contains(x.id)).ToList();
+    }
+    StartDate = new DateTime(current.start);
+    EndDate = new DateTime(current.end);
+  }
+
+  private async Task Update()
+  {
+    try
+    {
+      var timeNow = DateTime.Now.Ticks;
+      var start = StartDate.Value.DateTime.Ticks;
+      var end = EndDate.Value.DateTime.Ticks;
+      if (current.loop == 2)
+      {
+        List<bool> listChecked = new();
+        listChecked.Add(current.loop_week.mon);
+        listChecked.Add(current.loop_week.tue);
+        listChecked.Add(current.loop_week.wed);
+        listChecked.Add(current.loop_week.thu);
+        listChecked.Add(current.loop_week.fri);
+        listChecked.Add(current.loop_week.sat);
+        listChecked.Add(current.loop_week.sun);
+        var hasAnyWeek = listChecked.Any(x => x == true);
+        if (!hasAnyWeek)
+        {
+          await JSRuntime.InvokeVoidAsync("tagline", false, "Bạn cần chọn ít nhất 1 thứ áp dụng!");
+          return;
+        }
+      }
+      if (Shared.IsEmpty(current.name))
+        await JSRuntime.InvokeVoidAsync("tagline", false, "Bạn chưa nhập tên ngày nghỉ!");
+      else if (StartDate == null || EndDate == null)
+        await JSRuntime.InvokeVoidAsync("tagline", false, "Bạn cần chọn ngày bắt đầu và kết thúc!");
+      else if (start > end)
+        await JSRuntime.InvokeVoidAsync("tagline", false, "Ngày kết thúc phải lớn hơn ngày bắt đầu!");
+      else if (start <= timeNow)
+        await JSRuntime.InvokeVoidAsync("tagline", false, "Ngày bắt đầu phải lớn hơn ngày hiện tại!");
+      else if (end < timeNow)
+        await JSRuntime.InvokeVoidAsync("tagline", false, "Ngày kết thúc không thể nhỏ hơn ngày hiện tại!");
+      else
+      {
+        isLoading = true;
+        if (!isSalaryChecked)
+          current.salary_users = new();
+        if (!isNonSalaryChecked)
+          current.non_salary_users = new();
+
+        current.start = start;
+        current.end = end;
+
+        if (string.IsNullOrEmpty(current.id))
+        {
+          await DbHrmDayOff.Create(Layout.Company.id, current);
+          await JSRuntime.InvokeVoidAsync("tagline", true, "Đã tạo ngày nghỉ thành công!");
+          await SendNotify(current, 810);
+          dataListTemp.Add(current);
+        }
+        else
+        {
+          await DbHrmDayOff.Update(Layout.Company.id, current);
+          await JSRuntime.InvokeVoidAsync("tagline", true, "Cập nhật ngày nghỉ thành công!");
+          await SendNotify(current, 811);
+          dataListTemp = dataListTemp.Select((item, index) => item.id == current.id ? current : item).ToList();
+        }
+        var shareStorage = await globalService.GetShareStorage(Layout.Company.id);
+        var userList = shareStorage.MemberList;
+
+        dataListWeek = dataListTemp.Where(x => x.loop == 2).ToList();
+        dataListHoliday = dataListTemp.Where(x => x.loop == 1).ToList();
+        current = null;
+        sourcesSalary = userList;
+        sourcesNonSalary = userList;
+        isSalaryChecked = false;
+        isNonSalaryChecked = false;
+        isLoading = false;
+      }
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "Update()", ex.ToString(), Layout.User.id, Layout.Company.name);
+      await Layout.Tagline();
+    }
+  }
+
+  private async Task CheckedSalary()
+  {
+    var shareStorage = await globalService.GetShareStorage(Layout.Company.id);
+    var userList = shareStorage.MemberList;
+    isSalaryChecked = !isSalaryChecked;
+    if (!isSalaryChecked)
+    {
+      current.salary_users = new();
+      sourcesNonSalary = userList.Where(x => !current.salary_users.Contains(x.id)).ToList();
+    }
+  }
+
+  private async Task CheckedNonSalary()
+  {
+    var shareStorage = await globalService.GetShareStorage(Layout.Company.id);
+    var userList = shareStorage.MemberList;
+    isNonSalaryChecked = !isNonSalaryChecked;
+    if (!isNonSalaryChecked)
+    {
+      current.non_salary_users = new();
+      sourcesSalary = userList.Where(x => !current.non_salary_users.Contains(x.id)).ToList();
+    }
+  }
+
+  private async Task OnUpdateMemberSalary(bool isConfirm)
+  {
+    var shareStorage = await globalService.GetShareStorage(Layout.Company.id);
+    var userList = shareStorage.MemberList;
+    if (!isConfirm)
+      await CheckedSalary();
+    else
+      sourcesNonSalary = userList.Where(x => !current.salary_users.Contains(x.id)).ToList();
+  }
+
+  private async Task OnUpdateMemberNonSalary(bool isConfirm)
+  {
+    var shareStorage = await globalService.GetShareStorage(Layout.Company.id);
+    var userList = shareStorage.MemberList;
+    if (!isConfirm)
+      await CheckedNonSalary();
+    else
+      sourcesSalary = userList.Where(x => !current.non_salary_users.Contains(x.id)).ToList();
+  }
+
+  private async Task Cancel()
+  {
+    var shareStorage = await globalService.GetShareStorage(Layout.Company.id);
+    var userList = shareStorage.MemberList;
+    current = null;
+    isSalaryChecked = false;
+    isNonSalaryChecked = false;
+    sourcesSalary = userList;
+    sourcesNonSalary = userList;
+  }
+
+  private void ChangeTab(int e)
+  {
+    tab = e;
+  }
+
+  private void FetchDataHolidays(int years)
+  {
+    HolidaysGenerator holidaysGenerator = new HolidaysGenerator(years);
+    var dataHolidays = holidaysGenerator.GetList();
+    dataHolidays = dataHolidays.Where(x => x.start > DateTime.Now.Ticks).ToList();
+
+    foreach (var data in dataHolidays)
+    {
+      holidaysList.Add(new HrmDayOffModel
+        {
+          id = Mongo.RandomId(),
+          name = data.name,
+          start = data.start,
+          end = data.end,
+          loop = 1,
+          loop_week = new()
+        });
+    }
+    isFetching = true;
+  }
+
+  private async Task OnUpdateFetch(List<HrmDayOffModel> items)
+  {
+    foreach (var data in items)
+    {
+      await DbHrmDayOff.Create(Layout.Company.id, data);
+      await SendNotify(data, 810);
+    }
+    await JSRuntime.InvokeVoidAsync("tagline", true, "Đã tạo ngày nghỉ thành công!");
+    OffFetch();
+    await GetData();
+  }
+
+  private void OffFetch()
+  {
+    isFetching = false;
+    holidaysList = new();
+  }
+
+  private async Task SendNotify(HrmDayOffModel item, int type)
+  {
+    // Gủi thông báo chuông
+    var allUser = await DbUser.GetAll(Layout.Company.id, globalService);
+    var targetList = allUser.Where(x => x.role == 1 || (x.role == 2 && x.role_manage.timekeeping));
+    foreach (var user in targetList)
+      await DbNotify.Create(Layout.Company.id, type, item.name, user.id, Layout.User.id);
+  }
+
+  private void ChangeWeekApply(string day)
+  {
+    switch (day)
+    {
+      case "mon":
+        current.loop_week.mon = !current.loop_week.mon;
+        break;
+      case "tue":
+        current.loop_week.tue = !current.loop_week.tue;
+        break;
+      case "wed":
+        current.loop_week.wed = !current.loop_week.wed;
+        break;
+      case "thu":
+        current.loop_week.thu = !current.loop_week.thu;
+        break;
+      case "fri":
+        current.loop_week.fri = !current.loop_week.fri;
+        break;
+      case "sat":
+        current.loop_week.sat = !current.loop_week.sat;
+        break;
+      case "sun":
+        current.loop_week.sun = !current.loop_week.sun;
+        break;
+      default:
+        break;
+    }
+  }
+}

@@ -1,0 +1,468 @@
+@inject IJSRuntime JSRuntime
+@inject NavigationManager navigation
+@inject GlobalService globalService
+
+@if (model != null)
+{
+  <section class="modal is-active">
+    <div class="modal-background"></div>
+    <section class="modal-card has_bg">
+      <section class="modal-card-head is-success" style="background-image: url('/images/illustrations/users.png')">
+        <div class="modal-card-title">
+          <div class="title has-text-white">
+            Thêm người dùng
+          </div>
+          <div class="subtitle has-text-white">
+            Người dùng sản phẩm là người dùng truy cập
+            <br />
+            vào sử dụng sản phẩm
+          </div>
+        </div>
+        <a class="delete is-medium" @onclick="Cancel"></a>
+      </section>
+      @if (isImport)
+      {
+        <section class="modal-card-body">
+          <table class="table is-fullwidth">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th width="20%">Họ</th>
+                <th width="20%">Tên</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach (var item in dataImport)
+              {
+                <tr>
+                  <td>@item[0]</td>
+                  <td>@item[1]</td>
+                  <td>@item[2]</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+        <section class="modal-card-foot">
+          <div class="field is-grouped is-fullwidth">
+            <div class="control is-expanded">
+              <div class="field is-horizontal">
+                <div class="field-body">
+                  <div class="field">
+                    <p class="control">
+                      <input class="input" type="email" @bind="@emailTarget" placeholder="Email nhận danh sách tài khoản" >
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="control">
+              <a class="button" @onclick="Cancel">
+                <span class="icon">
+                  <i class="material-icons-round is-size-6">chevron_left</i>
+                </span>
+                <span class="is-size-7">Trở về</span>
+              </a>
+            </div>
+            <div class="control">
+              <a class="button is-link @(isLoading ? "is-loading" : "")" @onclick="StartImport">
+                <span class="icon">
+                  <i class="material-icons-round is-size-6">add</i>
+                </span>
+                <span class="is-size-7">Hoàn tất</span>
+              </a>
+            </div>
+          </div>
+        </section>
+      }
+      else
+      {
+        <section class="modal-card-body">
+          <form class="columns" autocomplete="off">
+            <div class="column is-one-quarter">
+              <div class="image is-128x128 is-radius mb-3">
+                <img src="@model.avatar" />
+              </div>
+              <a class="button is-white is-small is-fullwidth @(uploading ? "is-loading" : "")"
+                 onclick="document.getElementById('file').click()">
+                <span class="icon">
+                  <i class="material-icons-sharp is-size-6">file_upload</i>
+                </span>
+                <span>Tải ảnh lên</span>
+              </a>
+              <InputFile OnChange="Upload" accept="image/*" class="is-hidden" id="file" />
+            </div>
+
+            <div class="column is-three-quarters">
+              <div class="field has-text-weight-bold">
+                Thông tin tài khoản
+              </div>
+              <ul class="columns is-multiline is-variable is-2">
+                <li class="column is-full">
+                  <div class="field">
+                    <div class="control has-icons-left">
+                      <input @onchange="ChangeEmail" value="@model.email" type="email" class="input is_line"
+                             placeholder="Nhập địa chỉ email của người dùng..." />
+                      <span class="icon is-left has-text-black">
+                        <i class="material-icons-round is-size-6">account_circle</i>
+                      </span>
+                    </div>
+                  </div>
+                </li>
+                <li class="column is-half">
+                  <div class="field">
+                    <div class="control has-icons-left">
+                      <input @bind="model.last_name" type="text" class="input is_line" placeholder="Nhập họ" />
+                      <span class="icon is-left has-text-black">
+                        <i class="material-icons-round is-size-6">person</i>
+                      </span>
+                    </div>
+                  </div>
+                </li>
+                <li class="column is-half">
+                  <div class="field">
+                    <div class="control has-icons-left">
+                      <input @bind="model.first_name" type="text" class="input is_line" placeholder="Nhập tên" />
+                      <span class="icon is-left has-text-black">
+                        <i class="material-icons-round is-size-6">person</i>
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              </ul>
+
+              <div class="field has-text-weight-bold mt-5">
+                Sản phẩm được quyền truy cập
+              </div>
+
+              <ul class="columns is-multiline is-variable is-1">
+                @foreach (var product in company.products.Where(x => x.active && x.id != "storage"))
+                {
+                  var access = ProductService.CheckAccess(products, product.id);
+                  <li class="column is-half">
+                    <div class="icon-text @(product.used == product.total && !access ? "is_opacity" : "")">
+                      <a class="icon is-small mr-2" @onclick="() => AccessProduct(product)">
+                        <i class="material-icons-round is-size-5 has-text-@(access ? "success" : "grey")">
+                          toggle_@(access ? "on" : "off")
+                        </i>
+                      </a>
+                      <span class="has-text-weight-semibold is-size-7">
+                        @product.title - @product.used/@product.total
+                      </span>
+                    </div>
+                  </li>
+                }
+              </ul>
+
+              <label class="checkbox is-size-7 mt-3">
+                <input type="checkbox" @onchange="AccessAllProduct" />
+                <span class="has-text-weight-semibold">Kích hoạt tất cả bộ giải pháp</span>
+              </label>
+
+              <div class="field has-text-weight-bold mt-5">
+                Trạng thái
+              </div>
+              <label class="checkbox is-size-7">
+                <input @bind="model.active" type="checkbox" />
+                <span class="has-text-weight-semibold">Kích hoạt</span>
+              </label>
+            </div>
+          </form>
+        </section>
+        <section class="modal-card-foot">
+          <div class="field is-grouped is-fullwidth">
+            <div class="control is-expanded">
+              <FileImport OnUpdate="ImportExcel" />
+              <button class="button is-warning" title="Xuất Excel" @onclick="ExportExcel">
+                <span class="icon">
+                  <i class="material-icons-outlined is-size-5">file_download</i>
+                </span>
+                <span>Tải Excel mẫu</span>
+              </button>
+            </div>
+           
+            <div class="control">
+              <a class="button" @onclick="Cancel">
+                <span class="icon">
+                  <i class="material-icons-round is-size-6">chevron_left</i>
+                </span>
+                <span class="is-size-7">Trở về</span>
+              </a>
+            </div>
+            <div class="control">
+              <a class="button @(string.IsNullOrEmpty(model.id) ? "is-link" : "is-static")" @onclick="Update">
+                <span class="icon">
+                  <i class="material-icons-round is-size-6">done</i>
+                </span>
+                <span class="is-size-7">Xác nhận</span>
+              </a>
+            </div>
+          </div>
+        </section>
+      }
+    </section>
+  </section>
+}
+
+@code {
+  [CascadingParameter]
+  public LayoutAdmin Layout { get; set; }
+  [Parameter]
+  public UserModel model { get; set; }
+  [Parameter]
+  public CompanyModel company { get; set; }
+  [Parameter]
+  public EventCallback<bool> OnUpdate { get; set; }
+  private bool isLoading = false;
+  private bool isImport = false;
+  private List<List<string>> dataImport = new();
+  private List<string> products = new();
+  private bool uploading = false;
+
+  private Dictionary<string, string> newEmails = new();
+  private string emailTarget;
+  private string name;
+
+
+  private async Task Cancel()
+  {
+    isImport = false;
+    products = new();
+    await OnUpdate.InvokeAsync(false);
+  }
+
+  private async Task<bool> ChangeEmail(ChangeEventArgs e)
+  {
+    bool _success = true;
+    try
+    {
+      model.id = string.Empty;
+      model.email = e.Value.ToString().Trim();
+      // Kiểm tra tài khoản
+      var checkUser = await DbMainUser.GetbyEmail(model.email, globalService);
+      if (checkUser != null)
+      {
+        model.first_name = checkUser.first_name;
+        model.last_name = checkUser.last_name;
+        model.avatar = checkUser.avatar;
+        var companyUser = await DbUser.Get(company.id, checkUser.id, globalService);
+        if (companyUser != null)
+        {
+          model.id = checkUser.id;
+          await Tagline("Địa chỉ email này đã có trong tổ chức của bạn.");
+        }
+      }
+      else
+      {
+        model.first_name = string.Empty;
+        model.last_name = string.Empty;
+        model.avatar = $"https://avatars.dicebear.com/api/micah/{DateTime.Now.Minute}.svg?background=grey";
+      }
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "ChangeEmail()", ex.ToString(), Layout.User.id);
+      await Layout.Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private async Task<bool> Update()
+  {
+    bool _success = true;
+    try
+    {
+      if (string.IsNullOrEmpty(model.email))
+        await Tagline("Bạn chưa nhập địa chỉ email!");
+      else if (!model.email.Contains("@"))
+        await Tagline("Địa chỉ email không đúng định dạng!");
+      else if (string.IsNullOrEmpty(model.first_name) || string.IsNullOrEmpty(model.last_name))
+        await Tagline("Bạn chưa nhập họ và tên cho tài khoản!");
+      else
+      {
+        // Kiểm tra tài khoản
+        var checkUser = await DbMainUser.GetbyEmail(model.email, globalService);
+        if (checkUser == null)
+        {
+          model.password = "fastdo@123";
+          await DbMainUser.Create(model);
+          // Gửi email cấp tài khoản
+          await JSRuntime.InvokeVoidAsync("tagline", true, "Tạo tài khoản thành công. Vui lòng kiểm tra email.");
+
+          new Task(() =>
+          {
+            EmailService.UserInfo(model.email, "fastdo@123", model.FullName, company.name, out string message);
+          }).Start();
+        }
+        else
+          model = checkUser;
+
+        model.products = model.active ? products : new List<string>();
+        model.page_default = null;
+        // Thêm tài khoản vào tổ chức
+        await CompanyService.AddStaff(company, model, globalService);
+        await globalService.Update(company.id);
+        await OnUpdate.InvokeAsync(true);
+        await JSRuntime.InvokeVoidAsync("tagline", true, "Đã thêm tài khoản người dùng sản phẩm!");
+        products = new();
+        isImport = false;
+      }
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "Update()", ex.ToString(), Layout.User.id);
+      await Layout.Tagline();
+      _success = false;
+    }
+    return _success;
+  }
+
+  private void AccessAllProduct(ChangeEventArgs e)
+  {
+    if (Convert.ToBoolean(e.Value))
+    {
+      foreach (var product in company.products.Where(x => x.active && x.id != "storage"))
+      {
+        var access = ProductService.CheckAccess(products, product.id);
+        if (!access && product.used < product.total)
+          products.Add(product.id);
+      }
+    }
+    else
+      products = new();
+  }
+
+  private async Task AccessProduct(CompanyModel.Product product)
+  {
+    var access = ProductService.CheckAccess(products, product.id);
+    if (access)
+      products.Remove(product.id);
+    else if (product.used < product.total)
+      products.Add(product.id);
+    else
+      await JSRuntime.InvokeVoidAsync("tagline", false, "Đã hết số lượng người dùng sản phẩm " + product.title);
+  }
+
+  private async Task Upload(InputFileChangeEventArgs e)
+  {
+    uploading = true;
+    foreach (var file in e.GetMultipleFiles())
+    {
+      try
+      {
+        if (file.Size <= Layout.MaxFileSize)
+        {
+          var fileStream = new StreamContent(file.OpenReadStream(Layout.MaxFileSize));
+          model.avatar = await Files.SaveFileAsync(fileStream, file.Name);
+        }
+        else
+          await Tagline($"Chỉ cho phép file tối đa {string.Format("{0:0,0}", Layout.MaxFileSize / 1024000)} MB");
+      }
+      catch (Exception ex)
+      {
+        await Tagline($"Không thể tải ảnh lên: {ex.ToString()}");
+      }
+    }
+    uploading = false;
+  }
+
+  private async Task Tagline(string message)
+  {
+    await JSRuntime.InvokeVoidAsync("tagline", false, message);
+  }
+
+  private void ImportExcel(List<List<string>> data)
+  {
+    isImport = true;
+    dataImport = new();
+    foreach (var item in data)
+    {
+      if (item.Count > 2)
+        dataImport.Add(item);
+    }
+  }
+
+  private async Task StartImport()
+  {
+    try
+    {
+      if (string.IsNullOrEmpty(emailTarget))
+        await Tagline("Vui lòng nhập email nhận danh sách tài khoản!");
+      else if (!emailTarget.Contains("@"))
+        await Tagline("Địa chỉ email không đúng định dạng!");
+      else
+      {
+        isLoading = true;
+        newEmails = new();
+        foreach (var item in dataImport)
+        {
+          if (!string.IsNullOrEmpty(item[0]))
+          {
+            var email = item[0].ToLower().Trim();
+            var user = await DbMainUser.GetbyEmail(email, globalService);
+            if (user == null)
+            {
+              var id = Mongo.RandomId();
+              var fullName = item[1] + " " + item[2];
+              user = new UserModel()
+                {
+                  id = id,
+                  email = email,
+                  first_name = item[1],
+                  last_name = item[2],
+                  password = "fastdo@123",
+                  products = new(),
+                  companys = new(),
+                  role_manage = new(),
+                  role = 3,
+                };
+              newEmails.Add(user.email, user.password);
+              await DbMainUser.Create(user);
+            }
+
+            user.page_default = null;
+            await CompanyService.AddStaff(company, user, globalService);
+            await globalService.Update(company.id);
+          }
+        }
+
+        if (newEmails.Count > 0)
+        {
+          new Task(() =>
+          {
+            EmailService.UserListInfo(emailTarget, name, newEmails, company.name, out string message);
+          }).Start();
+        }
+        await JSRuntime.InvokeVoidAsync("tagline", true, "Đã thêm người dùng vào tổ chức.");
+        await OnUpdate.InvokeAsync(true);
+        isImport = false;
+      }
+    }
+    catch (Exception ex)
+    {
+      var formatLink = navigation.Uri.Replace(navigation.BaseUri, "/");
+      StorageService.CatchLog(formatLink, "StartImport()", ex.ToString(), Layout.User.id);
+      await Layout.Tagline();
+    }
+    isLoading = false;
+    emailTarget = string.Empty;
+  }
+
+  private async Task ExportExcel()
+  {
+    var dataExport = new List<List<string>>();
+    dataExport.Add(new List<string>
+    {
+      "Email",
+      "Họ và tên lót",
+      "Tên",
+    });
+
+    var file = Files.ExportExcel(dataExport);
+    await JSRuntime.InvokeAsync<string>("newTab", file);
+    await JSRuntime.InvokeVoidAsync("tagline", true, "Đã tải xuống file Excel mẫu!");
+  }
+}
