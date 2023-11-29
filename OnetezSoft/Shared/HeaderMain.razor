@@ -142,6 +142,11 @@
                             ShowSuggestionOnEmty />
       </div>
     </li>
+    <li class="column is-narrow">
+      <span class="icon is-clickable" @onclick="() => Layout.ActiveUserOnboarding()">
+        <span class="material-icons-outlined is-size-6">help_outline</span>
+      </span>
+    </li>
     <li class="column is-hidden-tablet"></li>
 
     <!-- Online -->
@@ -579,7 +584,7 @@
                 <FileUpload Cloud
                             ImageCompressSize="2 * 1024000"
                             Path="avatar"
-                            UploadToMain
+                                          UploadToMain
                             Accept="image/*"
                             FileId="file_avatar"
                             OnUpload="x => UploadAvatar(x[0])" />
@@ -674,7 +679,7 @@
             </label>
           </div>
         }
-        <hr class="my-2"/>
+        <hr class="my-2" />
         <div class=" has-text-weight-bold" @onclick="() => ToggleSection(3)">
           <a class="icon-text">
             <span>

@@ -101,7 +101,11 @@
   </main>
   <p class="fastdo_version">@("v" + LoginService.GetVersion())</p>
 
-  <UserOnboardingPopup />
+  @if (activeUserOnboarding)
+  {
+    <UserOnboardingPopup OnClose="() => activeUserOnboarding = false" />
+  }
+
 </CascadingValue>
 
 @code {
@@ -110,6 +114,8 @@
   public CompanyModel Company = null;
 
   public string CycleId = null;
+
+  public bool activeUserOnboarding = true;
 
   public string CycleKpisId = null;
 
@@ -471,6 +477,12 @@
     if (navigation.Uri.Contains("/kpis/root"))
       await JSRuntime.InvokeVoidAsync("SetLayoutReportPosition", "#kpis-report", "#chartKpisCheck", ".kpis-list-check");
 
+    await InvokeAsync(StateHasChanged);
+  }
+
+  public async Task ActiveUserOnboarding()
+  {
+    activeUserOnboarding = true;
     await InvokeAsync(StateHasChanged);
   }
 }

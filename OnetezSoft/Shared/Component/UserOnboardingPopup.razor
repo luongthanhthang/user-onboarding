@@ -26,27 +26,38 @@
                   </div>
                 }
               </div>
-
-              <p class="has-text-link is-clickable mt-4"
-              @onclick="() => Navigate()">
-                Đến trang đang xem
-              </p>
             </div>
           </div>
           <div class="column is-10 h-full is-flex is-flex-direction-column is-align-content-space-between" style="height: 600px;">
-            <div class="is-flex is-align-items-center p-4 is-justify-content-end">
-              <div class="sidebar-plan-icon-container is-white mr-2" @onclick="() => Previous()">
-                <span class="icon is-size-5 has-text-grey">
-                  <i class="material-icons-outlined">navigate_before</i>
-                </span>
+            <div class="columns is-vcentered is-variable is-3 m-0 px-4 py-2">
+              <div class="column is-narrow">
+                <p class="has-text-link is-clickable"
+                @onclick="() => Navigate()">
+                  Đến trang đang xem
+                </p>
               </div>
-              <div class="sidebar-plan-icon-container is-white" @onclick="() => Next()">
-                <span class="icon is-size-5 has-text-grey">
-                  <i class="material-icons-outlined">navigate_next</i>
-                </span>
+
+              @if (functionSelect != null)
+              {
+                <div class="column">
+                  <progress class="progress is-link" value="@Math.Round((Convert.ToDouble(stepImage + 1) / Convert.ToDouble(countFunctionList) * 100), 2)" max="100"></progress>
+                </div>
+              }
+
+              <div class="column is-narrow is-flex">
+                <div class="sidebar-plan-icon-container is-white mr-2" @onclick="() => Previous()">
+                  <span class="icon is-size-5 has-text-grey">
+                    <i class="material-icons-outlined">navigate_before</i>
+                  </span>
+                </div>
+                <div class="sidebar-plan-icon-container is-white" @onclick="() => Next()">
+                  <span class="icon is-size-5 has-text-grey">
+                    <i class="material-icons-outlined">navigate_next</i>
+                  </span>
+                </div>
               </div>
             </div>
-            
+
             @if (!itemSelect.is_alone)
             {
               <div class="columns is-vcentered is-multiline is-variable is-2 m-0 p-2">
@@ -62,8 +73,10 @@
               </div>
             }
 
-            <div class="image p-4" style="height: 445px; object-fit:unset;">
-              <img src="@GetImage()" alt="icon">
+            <div class="scrollx scrolly">
+              <div class="image p-4">
+                <img src="@GetImage()" alt="icon">
+              </div>
             </div>
           </div>
         </div>
@@ -72,13 +85,17 @@
       {
         <div class="columns is-vcentered is-multiline is-variable is-4 h-full p-4 m-0">
           <div class="column is-4 is-clickable" @onclick="() => NextModule()">
-            <div class="p-4" style="background: #FAFAFA; border-radius: 8px;">
+            <div class="p-4 is-flex is-flex-direction-column is-justify-content-center is-align-items-center" style="background: #FAFAFA; border-radius: 8px;">
               <span class="icon-text">
                 <span class="image is-40x40 mr-2">
                   <img src="/images/modules/checkin.png" alt="icon">
                 </span>
                 <span class="is-size-5 has-text-black has-text-weight-bold">Cấu hình chấm công</span>
               </span>
+
+              <a class="button is-link mt-2" @onclick="() => NextModule()">
+                Xem ngay !!!
+              </a>
             </div>
           </div>
         </div>
@@ -112,10 +129,12 @@
   [CascadingParameter]
   public LayoutMain Layout { get; set; }
   [Parameter]
-  public EventCallback OnClose { get; set; }
+  public EventCallback<bool> OnClose { get; set; }
 
   private int step = 1;
   private int stepImage = 0;
+  private int countFunctionList = 0;
+  private string value;
 
   private List<UserOnboardingModel> dataList = new();
   private UserOnboardingModel itemSelect;
@@ -395,7 +414,16 @@
       }
       });
 
-    itemSelect = dataList.FirstOrDefault();
+    var uri = navigation.Uri.Replace(navigation.BaseUri, "/");
+    var module = dataList.FirstOrDefault(i => i.url == uri);
+    if (module != null)
+    {
+      step = 2;
+      itemSelect = dataList.FirstOrDefault(i => i.id == module.id);
+    }
+    else
+      itemSelect = dataList.FirstOrDefault();
+
     functionSelect = itemSelect.functions.FirstOrDefault();
   }
 
@@ -410,6 +438,7 @@
     itemSelect = dataList.FirstOrDefault();
     functionSelect = itemSelect.functions.FirstOrDefault();
     stepImage = 0;
+    countFunctionList = functionSelect.images.Count;
     GetImage();
   }
 
@@ -419,6 +448,7 @@
     itemSelect = dataList.FirstOrDefault();
     functionSelect = itemSelect.functions.FirstOrDefault();
     stepImage = 0;
+    countFunctionList = functionSelect.images.Count;
     GetImage();
   }
 
@@ -427,6 +457,7 @@
     itemSelect = dataList.FirstOrDefault(i => i.id == idItem);
     functionSelect = itemSelect.functions.FirstOrDefault();
     stepImage = 0;
+    countFunctionList = functionSelect.images.Count;
     GetImage();
   }
 
@@ -434,6 +465,7 @@
   {
     functionSelect = itemSelect.functions.FirstOrDefault(i => i.id == idItem);
     stepImage = 0;
+    countFunctionList = functionSelect.images.Count;
     GetImage();
   }
 
@@ -449,6 +481,7 @@
     {
       // TH: Không lùi được nữa
       stepImage = 0;
+      countFunctionList = functionSelect.images.Count;
       itemSelect = dataList.FirstOrDefault();
       functionSelect = itemSelect.functions.FirstOrDefault();
     }
@@ -487,18 +520,21 @@
         functionSelect = itemSelect.functions[Convert.ToInt32(functionTemp.id) + 1];
     }
 
+    countFunctionList = functionSelect.images.Count;
     return functionSelect.images[stepImage];
   }
 
   private void Previous()
   {
     stepImage--;
+    countFunctionList = functionSelect.images.Count;
     GetImage();
   }
 
   private void Next()
   {
     stepImage++;
+    countFunctionList = functionSelect.images.Count;
     GetImage();
   }
 }
